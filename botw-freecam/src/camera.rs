@@ -1,9 +1,15 @@
 use crate::utils::*;
+use nalgebra_glm as glm;
 
 #[repr(C)]
 pub struct GameCamera {
     pos: [u32; 3],
     focus: [u32; 3],
+    // Unknown values (padding)
+    unk: [u32; 3],
+    fov: u32,
+    unk2: [u32; 24],
+    rot: [u32; 3],
 }
 
 impl std::fmt::Debug for GameCamera {
@@ -14,7 +20,7 @@ impl std::fmt::Debug for GameCamera {
             .map(|x| x.to_fbe())
             .collect();
 
-        let focus: Vec<f32>= Vec::from(self.focus)
+        let focus: Vec<f32> = Vec::from(self.focus)
             .into_iter()
             .map(|x| x.to_fbe())
             .collect();
@@ -23,6 +29,7 @@ impl std::fmt::Debug for GameCamera {
             .field("self", &format_args!("{:x}", ptr))
             .field("pos", &pos)
             .field("focus", &focus)
+            .field("fov", &(self.fov.to_fbe()))
             .finish()
     }
 }
@@ -45,7 +52,6 @@ impl FromF32ToU32BigEndian for f32 {
         let val: u32 = unsafe { std::mem::transmute::<f32, u32>(*self) };
         val.to_be()
     }
-
 }
 
 impl GameCamera {
@@ -62,24 +68,36 @@ impl GameCamera {
             input.delta_focus.1,
         );
 
-        self.pos[0] = (self.pos[0].to_fbe() + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z).to_u32();
+        self.pos[0] =
+            (self.pos[0].to_fbe() + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z)
+                .to_u32();
         self.pos[1] = (self.pos[1].to_fbe() + r_cam_y * input.delta_pos.1).to_u32();
 
-        self.pos[2] = (self.pos[2].to_fbe() + r_cam_z * input.delta_pos.1 - input.delta_pos.0 * r_cam_x).to_u32();
+        self.pos[2] = (self.pos[2].to_fbe() + r_cam_z * input.delta_pos.1
+            - input.delta_pos.0 * r_cam_x)
+            .to_u32();
 
         self.focus[0] = (self.pos[0].to_fbe() + r_cam_x).to_u32();
         self.focus[1] = (self.pos[1].to_fbe() + r_cam_y).to_u32();
         self.focus[2] = (self.pos[2].to_fbe() + r_cam_z).to_u32();
 
-        // let focus_ = glm::vec3(self.focus[0], self.focus[1], self.focus[2]);
-        // let pos_ = glm::vec3(self.pos[0], self.pos[1], self.pos[2]);
+        let pos_ = glm::vec3(
+            self.pos[0].to_fbe(),
+            self.pos[1].to_fbe(),
+            self.pos[2].to_fbe(),
+        );
+        let focus_ = glm::vec3(
+            self.focus[0].to_fbe(),
+            self.focus[1].to_fbe(),
+            self.focus[2].to_fbe(),
+        );
 
-        // let result = Camera::calculate_rotation(focus_, pos_, input.delta_rotation);
-        // self.rot[0] = result[0];
-        // self.rot[1] = result[1];
-        // self.rot[2] = result[2];
+        let result = GameCamera::calculate_rotation(focus_, pos_, input.delta_rotation);
+        self.rot[0] = result[0].to_u32();
+        self.rot[1] = result[1].to_u32();
+        self.rot[2] = result[2].to_u32();
 
-        // self.fov = input.fov;
+        self.fov = input.fov.to_u32();
     }
 
     pub fn calc_new_focus_point(
@@ -101,5 +119,21 @@ impl GameCamera {
         let r_cam_y = r * phi.cos();
 
         (r_cam_x, r_cam_z, r_cam_y)
+    }
+
+    pub fn calculate_rotation(focus: glm::Vec3, pos: glm::Vec3, rotation: f32) -> [f32; 3] {
+        let up = glm::vec3(0., 1., 0.);
+
+        let m_look_at = glm::look_at(&focus, &pos, &up);
+        let direction = {
+            let row = m_look_at.row(2);
+            glm::vec3(row[0], row[1], row[2])
+        };
+        // let axis = glm::vec3(0., 0., 1.);
+        let m_new = glm::rotate_normalized_axis(&m_look_at, rotation, &direction);
+
+        let result = m_new.row(1);
+
+        [result[0], result[1], result[2]]
     }
 }

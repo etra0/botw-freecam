@@ -1,6 +1,7 @@
-use winapi::um::winuser;
+use winapi::um::{winuser, xinput};
 use std::ffi::CString;
 
+const DEADZONE: i16 = 2000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
 
 /// Keys that aren't contained in the VirtualKeys from the Windows API.
@@ -65,6 +66,7 @@ impl Input {
         if self.engine_speed < MINIMUM_ENGINE_SPEED {
             self.engine_speed = MINIMUM_ENGINE_SPEED;
         }
+
     }
 }
 
@@ -92,7 +94,8 @@ pub fn handle_keyboard(input: &mut Input) {
         handle_state! {
             [Keys::W, Keys::S, input.delta_pos.1 = 0.2, input.delta_pos.1 = -0.2];
             [Keys::A, Keys::D, input.delta_pos.0 = 0.2, input.delta_pos.0 = -0.2];
-            [Keys::Q, Keys::E, input.delta_altitude = 0.2, input.delta_altitude = -0.2];
+            [winuser::VK_NEXT, winuser::VK_PRIOR, input.delta_rotation += 0.2, input.delta_rotation -= 0.2];
+            [Keys::Q, Keys::E, input.fov -= 0.02, input.fov += 0.02];
             [winuser::VK_UP, winuser::VK_DOWN, input.delta_focus.1 = -0.05, input.delta_focus.1 = 0.05];
             [winuser::VK_LEFT, winuser::VK_RIGHT, input.delta_focus.0 = -0.05, input.delta_focus.0 = 0.05];
             [winuser::VK_F2, winuser::VK_F3, input.change_active = true, input.change_active = false];
@@ -114,13 +117,11 @@ pub fn error_message(message: &str) {
     }
 }
 
-#[cfg(allow_deadcode)]
 pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_STATE) -> u32) {
     let mut xs: xinput::XINPUT_STATE = unsafe { std::mem::zeroed() };
     func(0, &mut xs);
 
     let gp = xs.Gamepad;
-    println!("{:x}", gp.wButtons);
 
     // check camera activation
     if (gp.wButtons & (0x200 | 0x80)) == (0x200 | 0x80) {
