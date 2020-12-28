@@ -1,0 +1,35 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --release
+    - name: Pack Release files
+      run: |
+        Copy target/release/botw_freecam.dll ./botw_freecam.dll
+        Copy target/release/injector.exe ./botw_freecam.exe
+        tar -a -c -f botw-freecam.zip botw_freecam.dll botw_freecam.exe
+
+    - name: Set Release version
+      run: echo "TAG_VERSION=$(python get_version.py)" >> $env:GITHUB_ENV
+    - name: "Automatic Release"
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ env.TAG_VERSION }}"
+        prerelease: false
+        title: "${{ env.TAG_VERSION }}"
+        files: |
+          botw-freecam.zip
