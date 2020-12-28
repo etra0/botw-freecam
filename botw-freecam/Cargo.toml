@@ -12,6 +12,7 @@ winapi = { version = "0.3", features = ["minwindef", "libloaderapi", "consoleapi
 simplelog = "0.8"
 log = "0.4"
 nalgebra-glm = "0.3"
+termcolor = "1.1"
 
 [build-dependencies]
 winres = "0.1"

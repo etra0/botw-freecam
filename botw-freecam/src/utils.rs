@@ -1,8 +1,30 @@
-use winapi::um::{winuser, xinput};
 use std::ffi::CString;
+use winapi::um::{winuser, xinput};
 
 const DEADZONE: i16 = 2000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
+
+pub const INSTRUCTIONS: &'static str = "------------------------------
+USAGE:
+F2 / L2 + Circle / RT + B\t\tActivation
+WASD + Arrow keys / Sticks\t\tCamera movement
+Q - E / R2 - L2 / RT - LT\t\tFov control
+PgUp - PgDown / R1 - L1 / RB - LB\tRotation
+F3 - F4 / dpad left - dpad right\tChange movement speed
+Shift / X / A\t\t\t\tAccelerates temporarily
+------------------------------";
+
+const CARGO_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
+const GIT_VERSION: Option<&'static str> = option_env!("GIT_VERSION");
+
+/// Generate current version of the executable from the
+/// latest git version and the cargo verison.
+pub fn get_version() -> String {
+    let cargo = CARGO_VERSION.unwrap_or("Unknown");
+    let git = GIT_VERSION.unwrap_or("Unknown");
+
+    return format!("{}.{}", cargo, git);
+}
 
 /// Keys that aren't contained in the VirtualKeys from the Windows API.
 #[repr(i32)]
@@ -32,6 +54,8 @@ pub struct Input {
 
     // #[cfg(debug_assertions)]
     pub deattach: bool,
+
+    pub speed_multiplier: f32,
 }
 
 impl Input {
@@ -39,6 +63,7 @@ impl Input {
         Self {
             fov: 0.92,
             engine_speed: MINIMUM_ENGINE_SPEED,
+            speed_multiplier: 1.,
             ..Input::default()
         }
     }
@@ -67,6 +92,13 @@ impl Input {
             self.engine_speed = MINIMUM_ENGINE_SPEED;
         }
 
+        if self.speed_multiplier > 10. {
+            self.speed_multiplier = 10.
+        }
+
+        if self.speed_multiplier < 0.01 {
+            self.speed_multiplier = 0.01;
+        }
     }
 }
 
@@ -92,15 +124,26 @@ pub fn handle_keyboard(input: &mut Input) {
 
     unsafe {
         handle_state! {
-            [Keys::W, Keys::S, input.delta_pos.1 = 0.2, input.delta_pos.1 = -0.2];
-            [Keys::A, Keys::D, input.delta_pos.0 = 0.2, input.delta_pos.0 = -0.2];
-            [winuser::VK_NEXT, winuser::VK_PRIOR, input.delta_rotation += 0.2, input.delta_rotation -= 0.2];
+            [Keys::W, Keys::S, input.delta_pos.1 = 0.02, input.delta_pos.1 = -0.02];
+            [Keys::A, Keys::D, input.delta_pos.0 = 0.02, input.delta_pos.0 = -0.02];
+            [winuser::VK_NEXT, winuser::VK_PRIOR, input.delta_rotation += 0.02, input.delta_rotation -= 0.02];
             [Keys::Q, Keys::E, input.fov -= 0.02, input.fov += 0.02];
-            [winuser::VK_UP, winuser::VK_DOWN, input.delta_focus.1 = -0.05, input.delta_focus.1 = 0.05];
-            [winuser::VK_LEFT, winuser::VK_RIGHT, input.delta_focus.0 = -0.05, input.delta_focus.0 = 0.05];
+            [winuser::VK_UP, winuser::VK_DOWN, input.delta_focus.1 = -0.02, input.delta_focus.1 = 0.02];
+            [winuser::VK_LEFT, winuser::VK_RIGHT, input.delta_focus.0 = -0.02, input.delta_focus.0 = 0.02];
             [winuser::VK_F2, winuser::VK_F3, input.change_active = true, input.change_active = false];
+            [winuser::VK_F3, winuser::VK_F4, input.speed_multiplier -= 0.01, input.speed_multiplier += 0.01];
         }
     }
+
+    unsafe {
+        if winuser::GetAsyncKeyState(winuser::VK_LSHIFT) as u32 & 0x8000 != 0 {
+            input.delta_pos.0 *= 8.;
+            input.delta_pos.1 *= 8.;
+        }
+    }
+
+    input.delta_pos.0 *= input.speed_multiplier;
+    input.delta_pos.1 *= input.speed_multiplier;
 }
 
 pub fn error_message(message: &str) {
@@ -124,7 +167,7 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
     let gp = xs.Gamepad;
 
     // check camera activation
-    if (gp.wButtons & (0x200 | 0x80)) == (0x200 | 0x80) {
+    if gp.bLeftTrigger > 150 && ((gp.wButtons & 0x2000) == 0x2000) {
         input.change_active = true;
     }
 
@@ -140,10 +183,10 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
 
     // modify speed
     if (gp.wButtons & 0x4) != 0 {
-        input.engine_speed -= 0.01;
+        input.speed_multiplier -= 0.01;
     }
     if (gp.wButtons & 0x8) != 0 {
-        input.engine_speed += 0.01;
+        input.speed_multiplier += 0.01;
     }
 
     if (gp.wButtons & (0x200)) != 0 {
@@ -176,9 +219,14 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         };
     }
 
-    input.delta_pos.0 = -(dead_zone!(gp.sThumbLX) as f32) / ((i16::MAX as f32) * 1e2);
-    input.delta_pos.1 = (dead_zone!(gp.sThumbLY) as f32) / ((i16::MAX as f32) * 1e2);
+    input.delta_pos.0 = -(dead_zone!(gp.sThumbLX) as f32) / ((i16::MAX as f32) * 1e2)*input.speed_multiplier;
+    input.delta_pos.1 = (dead_zone!(gp.sThumbLY) as f32) / ((i16::MAX as f32) * 1e2)*input.speed_multiplier;
 
     input.delta_focus.0 = (dead_zone!(gp.sThumbRX) as f32) / ((i16::MAX as f32) * 1e2);
     input.delta_focus.1 = -(dead_zone!(gp.sThumbRY) as f32) / ((i16::MAX as f32) * 1e2);
+
+    if gp.wButtons & 0x1000 != 0 {
+        input.delta_pos.0 *= 8.;
+        input.delta_pos.1 *= 8.;
+    }
 }

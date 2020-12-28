@@ -1,11 +1,15 @@
-use memory_rs::internal::{injections::{Detour, Inject, Injection}, memory::resolve_module_path};
+use memory_rs::internal::{
+    injections::{Detour, Inject, Injection},
+    memory::resolve_module_path,
+    process_info::ProcessInfo,
+};
 use std::ffi::CString;
 use winapi::um::libloaderapi::{FreeLibraryAndExitThread, GetModuleHandleA};
 use winapi::um::wincon::FreeConsole;
 use winapi::um::winuser;
+use winapi::um::xinput;
 use winapi::um::{consoleapi::AllocConsole, winuser::GetAsyncKeyState};
 use winapi::{shared::minwindef::LPVOID, um::libloaderapi::GetProcAddress};
-use winapi::um::xinput;
 
 use log::*;
 use simplelog::*;
@@ -17,6 +21,16 @@ mod utils;
 use camera::*;
 use globals::*;
 use utils::{error_message, handle_keyboard, Input};
+
+use std::io::{self, Write};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
+fn write_red(msg: &str) -> io::Result<()> {
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    stdout.set_color(ColorSpec::new().set_fg(Some(Color::Red)))?;
+    writeln!(&mut stdout, "{}", msg)?;
+    stdout.reset()
+}
 
 unsafe extern "system" fn wrapper(lib: LPVOID) -> u32 {
     AllocConsole();
@@ -52,24 +66,11 @@ unsafe extern "system" fn wrapper(lib: LPVOID) -> u32 {
     0
 }
 
-fn get_base_offset() -> Result<usize, Box<dyn std::error::Error>> {
-    let function_name = CString::new("memory_getBase")?;
-
-    // Get the handle of the process.
-    let proc_handle = unsafe { GetModuleHandleA(std::ptr::null_mut()) };
-
-    let func = unsafe { GetProcAddress(proc_handle, function_name.as_ptr()) };
-    let func: extern "C" fn() -> usize = unsafe { std::mem::transmute(func) };
-    let addr = (func)();
-
-    Ok(addr)
-}
-
 #[derive(Debug)]
 struct CameraOffsets {
     camera: usize,
     rotation_vec1: usize,
-    rotation_vec2: usize
+    rotation_vec2: usize,
 }
 
 fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
@@ -86,15 +87,19 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
 
     if addr == 0x0 {
         return Err(
-            "Jump table was empty, Check you're running the game and using recompiler profile".into(),
+            "Jump table was empty, Check you're running the game and using recompiler profile"
+                .into(),
         );
     }
 
-    let array = unsafe { std::slice::from_raw_parts(addr as *const usize, 0x8800000/0x8) };
+    let array = unsafe { std::slice::from_raw_parts(addr as *const usize, 0x8800000 / 0x8) };
     let original_bytes = [
         0x45_u8, 0x0F, 0x38, 0xF1, 0xB4, 0x05, 0xC4, 0x05, 0x00, 0x00,
     ];
 
+    // As Exzap said, "It will only compile it once its executed. Before that the table points to a placeholder function"
+    // So we'll wait until the game is in the world and the code will be recompiled, then the pointer should be changed to the right function.
+    // Once is resolved, we can lookup the rest of the functions since the camera we assume the camera is active
     info!("Waiting for the game to start");
     let camera_offset = loop {
         let function_start = array[0x2C053DC / 4];
@@ -111,20 +116,29 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     let rotation_vec1 = array[0x2c085f0 / 4] + 0x192;
     let rotation_vec2 = array[0x2e57fdc / 4] + 0x7f;
 
-    Ok(CameraOffsets {camera: camera_offset, rotation_vec1, rotation_vec2})
+    Ok(CameraOffsets {
+        camera: camera_offset,
+        rotation_vec1,
+        rotation_vec2,
+    })
 }
 
 fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
-    let base_addr = get_base_offset()?;
-
-    println!("{:x}", base_addr);
+    info!(
+        "Breath of the Wild freecam by @etra0, v{}",
+        utils::get_version()
+    );
+    write_red("If you close this window the game will close. Use HOME to deattach the freecamera (will close this window as well).")?;
+    println!("{}", utils::INSTRUCTIONS);
+    write_red("Controller input will only be detected if Xinput is used in the Control settings, otherwise use the keyboard.")?;
+    let proc_inf = ProcessInfo::new(None)?;
 
     let mut input = Input::new();
 
     let mut active = false;
 
     let camera_struct = get_camera_function()?;
-    println!("{:x?}", camera_struct);
+    info!("{:x?}", camera_struct);
     let camera_pointer = camera_struct.camera;
     info!("Camera function camera_pointer: {:x}", camera_pointer);
 
@@ -138,6 +152,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let mut nops = vec![
+        // Camera pos and focus writers
         Injection::new(camera_struct.camera + 0x1C8, vec![0x90; 10]),
         Injection::new(camera_struct.camera + 0x4C, vec![0x90; 10]),
         Injection::new(camera_struct.camera + 0x17, vec![0x90; 10]),
@@ -151,17 +166,26 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         Injection::new(camera_struct.rotation_vec1, vec![0x90; 10]),
         Injection::new(camera_struct.rotation_vec1 + 0x3E, vec![0x90; 10]),
         Injection::new(camera_struct.rotation_vec1 + 0x9B, vec![0x90; 10]),
-
         Injection::new(camera_struct.rotation_vec2, vec![0x90; 7]),
         Injection::new(camera_struct.rotation_vec2 - 0x14, vec![0x90; 7]),
         Injection::new(camera_struct.rotation_vec2 - 0x28, vec![0x90; 7]),
+
+        // Find input blocker for xinput only
+        Injection::new_from_aob(
+            &proc_inf,
+            vec![0x90; 3],
+            memory_rs::generate_aob_pattern![
+                0x41, 0xFF, 0xD0, 0x85, 0xC0, 0x74, 0x16, 0x33, 0xC9, 0xC6, 0x87, 0x58, 0x01, 0x00,
+                0x00, 0x00, 0x8B, 0xC1, 0x87, 0x47, 0x14, 0x86, 0x4F, 0x18
+            ],
+        )
+        .or(Err("Input blocker couldn't be found"))?,
     ];
 
     cam.inject();
 
-    let xinput_func = |a: u32, b: &mut xinput::XINPUT_STATE| -> u32 {
-        unsafe { xinput::XInputGetState(a, b) }
-    };
+    let xinput_func =
+        |a: u32, b: &mut xinput::XINPUT_STATE| -> u32 { unsafe { xinput::XInputGetState(a, b) } };
 
     loop {
         utils::handle_controller(&mut input, xinput_func);
@@ -169,7 +193,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         input.sanitize();
 
         if input.deattach || (unsafe { GetAsyncKeyState(winuser::VK_HOME) } as u32 & 0x8000) != 0 {
-            println!("Exiting");
+            info!("Exiting");
             break;
         }
 
@@ -200,7 +224,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             // let gc = (base_addr + 0x44E58260) as *mut GameCamera;
             let gc = g_camera_struct as *mut GameCamera;
             (*gc).consume_input(&input);
-            println!("{:?}", *gc);
+            // println!("{:?}", *gc);
         }
 
         input.reset();
@@ -223,6 +247,9 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
     // up vector 2:
     // 0x02e57ff4
+
+    // Block input:
+    // Cemu.exe + 0x3c63e1
 
     Ok(())
 }

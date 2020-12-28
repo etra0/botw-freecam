@@ -54,6 +54,7 @@ dependencies = [
  "memory-rs",
  "nalgebra-glm",
  "simplelog",
+ "termcolor",
  "winapi",
  "winres",
 ]
