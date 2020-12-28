@@ -1,6 +1,6 @@
 use memory_rs::internal::{
     injections::{Detour, Inject, Injection},
-    memory::resolve_module_path,
+    memory::{resolve_module_path, scan_aob},
     process_info::ProcessInfo,
 };
 use std::ffi::CString;
@@ -20,7 +20,7 @@ mod utils;
 
 use camera::*;
 use globals::*;
-use utils::{error_message, handle_keyboard, Input};
+use utils::{Input, dummy_xinput, error_message, handle_keyboard};
 
 use std::io::{self, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -123,6 +123,30 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     })
 }
 
+fn block_xinput(proc_inf: &ProcessInfo) -> Result<Injection, Box<dyn std::error::Error>> {
+    // Find input blocker for xinput only
+    let pat = memory_rs::generate_aob_pattern![
+        0x41, 0xFF, 0xD0, 0x85, 0xC0, 0x74, 0x16, 0x33, 0xC9, 0xC6, 0x87, 0x58, 0x01, 0x00, 0x00,
+        0x00, 0x8B, 0xC1, 0x87, 0x47, 0x14, 0x86, 0x4F, 0x18
+    ];
+
+    let function_addr = scan_aob(
+        proc_inf.region.start_address,
+        proc_inf.region.size,
+        pat.1,
+        pat.0,
+    )
+    ?.ok_or("XInput blocker couldn't be found")?;
+
+    let rip = function_addr - 10;
+    let offset = unsafe { *((rip + 3) as *const u32) as usize + rip + 7 };
+
+    let my_function: [u8; 8] = unsafe { std::mem::transmute(dummy_xinput as *const u8 as usize) };
+    let injection = Injection::new(offset, Vec::from(my_function));
+
+    Ok(injection)
+}
+
 fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
     info!(
         "Breath of the Wild freecam by @etra0, v{}",
@@ -142,6 +166,8 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
     let camera_pointer = camera_struct.camera;
     info!("Camera function camera_pointer: {:x}", camera_pointer);
 
+    block_xinput(&proc_inf)?;
+
     let mut cam = unsafe {
         Detour::new(
             camera_pointer,
@@ -158,10 +184,8 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         Injection::new(camera_struct.camera + 0x17, vec![0x90; 10]),
         Injection::new(camera_struct.camera + 0x98, vec![0x90; 10]),
         Injection::new(camera_struct.camera + 0x1Df, vec![0x90; 10]),
-
         // Fov
         Injection::new(camera_struct.camera + 0xAF, vec![0x90; 10]),
-
         // Rotation
         Injection::new(camera_struct.rotation_vec1, vec![0x90; 10]),
         Injection::new(camera_struct.rotation_vec1 + 0x3E, vec![0x90; 10]),
@@ -170,16 +194,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         Injection::new(camera_struct.rotation_vec2 - 0x14, vec![0x90; 7]),
         Injection::new(camera_struct.rotation_vec2 - 0x28, vec![0x90; 7]),
 
-        // Find input blocker for xinput only
-        Injection::new_from_aob(
-            &proc_inf,
-            vec![0x90; 3],
-            memory_rs::generate_aob_pattern![
-                0x41, 0xFF, 0xD0, 0x85, 0xC0, 0x74, 0x16, 0x33, 0xC9, 0xC6, 0x87, 0x58, 0x01, 0x00,
-                0x00, 0x00, 0x8B, 0xC1, 0x87, 0x47, 0x14, 0x86, 0x4F, 0x18
-            ],
-        )
-        .or(Err("Input blocker couldn't be found"))?,
+        block_xinput(&proc_inf)?
     ];
 
     cam.inject();

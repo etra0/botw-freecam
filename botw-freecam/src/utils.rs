@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use winapi::um::{winuser, xinput};
+use crate::globals::*;
 
 const DEADZONE: i16 = 2000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
@@ -229,4 +230,13 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         input.delta_pos.0 *= 8.;
         input.delta_pos.1 *= 8.;
     }
+}
+
+pub unsafe extern "system" fn dummy_xinput(a: u32, b: &mut xinput::XINPUT_STATE) -> u32 {
+    if g_camera_active != 0 {
+        return 0;
+    }
+
+    xinput::XInputGetState(a, b)
+
 }
