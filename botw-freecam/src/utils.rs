@@ -1,6 +1,6 @@
+use crate::globals::*;
 use std::ffi::CString;
 use winapi::um::{winuser, xinput};
-use crate::globals::*;
 
 const DEADZONE: i16 = 2000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
@@ -9,7 +9,8 @@ pub const INSTRUCTIONS: &'static str = "------------------------------
 USAGE:
 F2 / L2 + Circle / RT + B\t\tActivation
 WASD + Arrow keys / Sticks\t\tCamera movement
-Q - E / R2 - L2 / RT - LT\t\tFov control
+Q - E / Square - Triangle / X - Y\tCamera's height
+F5 - F6 / R2 - L2 / RT - LT\t\tFov control
 PgUp - PgDown / R1 - L1 / RB - LB\tRotation
 F3 - F4 / dpad left - dpad right\tChange movement speed
 Shift / X / A\t\t\t\tAccelerates temporarily
@@ -44,6 +45,7 @@ pub struct Input {
     // Deltas with X and Y
     pub delta_pos: (f32, f32),
     pub delta_focus: (f32, f32),
+
     pub delta_rotation: f32,
 
     pub delta_altitude: f32,
@@ -125,13 +127,31 @@ pub fn handle_keyboard(input: &mut Input) {
 
     unsafe {
         handle_state! {
+                // Others
+                [winuser::VK_F2, winuser::VK_F3, input.change_active = true, input.change_active = false];
+        }
+    }
+
+    if !input.is_active {
+        return;
+    }
+
+    unsafe {
+        handle_state! {
+            // Position of the camer
             [Keys::W, Keys::S, input.delta_pos.1 = 0.02, input.delta_pos.1 = -0.02];
             [Keys::A, Keys::D, input.delta_pos.0 = 0.02, input.delta_pos.0 = -0.02];
-            [winuser::VK_NEXT, winuser::VK_PRIOR, input.delta_rotation += 0.02, input.delta_rotation -= 0.02];
-            [Keys::Q, Keys::E, input.fov -= 0.02, input.fov += 0.02];
             [winuser::VK_UP, winuser::VK_DOWN, input.delta_focus.1 = -0.02, input.delta_focus.1 = 0.02];
             [winuser::VK_LEFT, winuser::VK_RIGHT, input.delta_focus.0 = -0.02, input.delta_focus.0 = 0.02];
-            [winuser::VK_F2, winuser::VK_F3, input.change_active = true, input.change_active = false];
+
+            [Keys::Q, Keys::E, input.delta_altitude -= 0.02, input.delta_altitude += 0.02];
+
+            // Rotation
+            [winuser::VK_NEXT, winuser::VK_PRIOR, input.delta_rotation += 0.02, input.delta_rotation -= 0.02];
+
+            //  FoV
+            [winuser::VK_F5, winuser::VK_F6, input.fov -= 0.02, input.fov += 0.02];
+
             [winuser::VK_F3, winuser::VK_F4, input.speed_multiplier -= 0.01, input.speed_multiplier += 0.01];
         }
     }
@@ -140,11 +160,13 @@ pub fn handle_keyboard(input: &mut Input) {
         if winuser::GetAsyncKeyState(winuser::VK_LSHIFT) as u32 & 0x8000 != 0 {
             input.delta_pos.0 *= 8.;
             input.delta_pos.1 *= 8.;
+            input.delta_altitude *= 8.;
         }
     }
 
     input.delta_pos.0 *= input.speed_multiplier;
     input.delta_pos.1 *= input.speed_multiplier;
+    input.delta_altitude *= input.speed_multiplier;
 }
 
 pub fn error_message(message: &str) {
@@ -172,10 +194,10 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         input.change_active = true;
     }
 
-    #[cfg(debug_assertions)]
-    if (gp.wButtons & (0x1000 | 0x4000)) == (0x1000 | 0x4000) {
-        input.deattach = true;
-    }
+    // #[cfg(debug_assertions)]
+    // if (gp.wButtons & (0x1000 | 0x4000)) == (0x1000 | 0x4000) {
+    //     input.deattach = true;
+    // }
 
     // Update the camera changes only if it's listening
     if !input.is_active {
@@ -210,6 +232,14 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         input.fov += 0.01;
     }
 
+    if gp.wButtons & 0x4000 != 0 {
+        input.delta_altitude = 0.02;
+    }
+
+    if gp.wButtons & 0x8000 != 0 {
+        input.delta_altitude = -0.02;
+    }
+
     macro_rules! dead_zone {
         ($val:expr) => {
             if ($val < DEADZONE) && ($val > -DEADZONE) {
@@ -220,15 +250,20 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         };
     }
 
-    input.delta_pos.0 = -(dead_zone!(gp.sThumbLX) as f32) / ((i16::MAX as f32) * 1e2)*input.speed_multiplier;
-    input.delta_pos.1 = (dead_zone!(gp.sThumbLY) as f32) / ((i16::MAX as f32) * 1e2)*input.speed_multiplier;
+    input.delta_pos.0 =
+        -(dead_zone!(gp.sThumbLX) as f32) / ((i16::MAX as f32) * 1e2) * input.speed_multiplier;
+    input.delta_pos.1 =
+        (dead_zone!(gp.sThumbLY) as f32) / ((i16::MAX as f32) * 1e2) * input.speed_multiplier;
 
     input.delta_focus.0 = (dead_zone!(gp.sThumbRX) as f32) / ((i16::MAX as f32) * 1e2);
     input.delta_focus.1 = -(dead_zone!(gp.sThumbRY) as f32) / ((i16::MAX as f32) * 1e2);
 
+    input.delta_altitude *= input.speed_multiplier;
+
     if gp.wButtons & 0x1000 != 0 {
         input.delta_pos.0 *= 8.;
         input.delta_pos.1 *= 8.;
+        input.delta_altitude *= 8.;
     }
 }
 
@@ -239,5 +274,4 @@ pub unsafe extern "system" fn dummy_xinput(a: u32, b: &mut xinput::XINPUT_STATE)
     }
 
     xinput::XInputGetState(a, b)
-
 }

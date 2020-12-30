@@ -71,7 +71,8 @@ impl GameCamera {
         self.pos[0] =
             (self.pos[0].to_fbe() + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z)
                 .to_u32();
-        self.pos[1] = (self.pos[1].to_fbe() + r_cam_y * input.delta_pos.1).to_u32();
+
+        self.pos[1] = (self.pos[1].to_fbe() + r_cam_y * input.delta_pos.1 + input.delta_altitude).to_u32();
 
         self.pos[2] = (self.pos[2].to_fbe() + r_cam_z * input.delta_pos.1
             - input.delta_pos.0 * r_cam_x)
