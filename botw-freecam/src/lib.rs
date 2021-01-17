@@ -232,14 +232,21 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         unsafe {
-            if !active || g_camera_struct == 0x0 {
+            // If we don't have the camera struct we need to skip it right away
+            if g_camera_struct == 0x0 {
+                continue;
+            } 
+
+            let gc = g_camera_struct as *mut GameCamera;
+            if !active {
+                input.fov = (*gc).fov.to_fbe();
                 continue;
             }
 
+
             // let gc = (base_addr + 0x44E58260) as *mut GameCamera;
-            let gc = g_camera_struct as *mut GameCamera;
             (*gc).consume_input(&input);
-            // println!("{:?}", *gc);
+            println!("{:?}", *gc);
         }
 
         input.reset();

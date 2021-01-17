@@ -3,13 +3,13 @@ use nalgebra_glm as glm;
 
 #[repr(C)]
 pub struct GameCamera {
-    pos: [u32; 3],
-    focus: [u32; 3],
+    pub pos: [u32; 3],
+    pub focus: [u32; 3],
     // Unknown values (padding)
-    unk: [u32; 3],
-    fov: u32,
-    unk2: [u32; 24],
-    rot: [u32; 3],
+    pub unk: [u32; 3],
+    pub fov: u32,
+    pub unk2: [u32; 24],
+    pub rot: [u32; 3],
 }
 
 impl std::fmt::Debug for GameCamera {
@@ -34,10 +34,10 @@ impl std::fmt::Debug for GameCamera {
     }
 }
 
-trait FromU32BigEndianToFloat {
+pub trait FromU32BigEndianToFloat {
     fn to_fbe(&self) -> f32;
 }
-trait FromF32ToU32BigEndian {
+pub trait FromF32ToU32BigEndian {
     fn to_u32(&self) -> u32;
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "botw-freecam"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Sebastián Aedo <sebastian.aedo@sansano.usm.cl>"]
 edition = "2018"
 
