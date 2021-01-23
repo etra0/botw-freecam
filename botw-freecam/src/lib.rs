@@ -20,7 +20,7 @@ mod utils;
 
 use camera::*;
 use globals::*;
-use utils::{Input, dummy_xinput, error_message, handle_keyboard};
+use utils::{Input, dummy_xinput, error_message, handle_keyboard, check_key_press};
 
 use std::io::{self, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -161,6 +161,8 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut active = false;
 
+    let mut points: Vec<CameraSnapshot> = vec![];
+
     let camera_struct = get_camera_function()?;
     info!("{:x?}", camera_struct);
     let camera_pointer = camera_struct.camera;
@@ -207,7 +209,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         handle_keyboard(&mut input);
         input.sanitize();
 
-        if input.deattach || (unsafe { GetAsyncKeyState(winuser::VK_HOME) } as u32 & 0x8000) != 0 {
+        if input.deattach || check_key_press(winuser::VK_HOME) {
             info!("Exiting");
             break;
         }
@@ -243,10 +245,27 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
+            if check_key_press(winuser::VK_F9) {
+                let cs = CameraSnapshot::new(&(*gc));
+                println!("Point added to interpolation: {:?}", cs);
+                points.push(cs);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
+            if check_key_press(winuser::VK_F11) {
+                points = vec![];
+            }
+
+            if check_key_press(winuser::VK_F10) & (points.len() > 1) {
+                let dur = std::time::Duration::from_secs(5);
+                points.interpolate(&mut (*gc), dur);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
 
             // let gc = (base_addr + 0x44E58260) as *mut GameCamera;
             (*gc).consume_input(&input);
-            println!("{:?}", *gc);
+            // println!("{:?}", *gc);
         }
 
         input.reset();

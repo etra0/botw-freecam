@@ -39,6 +39,10 @@ pub enum Keys {
     W = 0x57,
 }
 
+pub fn check_key_press(key: i32) -> bool {
+        return unsafe { winuser::GetAsyncKeyState(key) } as u32 & 0x8000 != 0 
+}
+
 #[derive(Default, Debug)]
 pub struct Input {
     pub engine_speed: f32,
