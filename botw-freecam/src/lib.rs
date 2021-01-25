@@ -8,7 +8,7 @@ use winapi::um::libloaderapi::{FreeLibraryAndExitThread, GetModuleHandleA};
 use winapi::um::wincon::FreeConsole;
 use winapi::um::winuser;
 use winapi::um::xinput;
-use winapi::um::{consoleapi::AllocConsole, winuser::GetAsyncKeyState};
+use winapi::um::consoleapi::AllocConsole;
 use winapi::{shared::minwindef::LPVOID, um::libloaderapi::GetProcAddress};
 
 use log::*;
@@ -17,8 +17,10 @@ use simplelog::*;
 mod camera;
 mod globals;
 mod utils;
+mod dolly;
 
 use camera::*;
+use dolly::*;
 use globals::*;
 use utils::{Input, dummy_xinput, error_message, handle_keyboard, check_key_press};
 
