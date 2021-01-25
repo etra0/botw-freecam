@@ -6,9 +6,9 @@ use crate::camera::*;
 
 #[derive(Debug, Clone)]
 pub struct CameraSnapshot {
-    pos: [f32; 3],
-    focus: [f32; 3],
-    rot: [f32; 3]
+    pos: glm::Vec3,
+    focus: glm::Vec3,
+    rot: glm::Vec3
 }
 
 pub trait Interpolate {
@@ -17,22 +17,9 @@ pub trait Interpolate {
 
 impl CameraSnapshot {
     pub fn new(gc: &GameCamera) -> Self {
-        let mut pos = [0f32; 3];
-        let mut focus = [0f32; 3];
-        let mut rot = [0f32; 3];
-
-        // We zip both pos and focus to just do one iteration when copying.
-        let iterable = pos
-            .iter_mut()
-            .zip(focus.iter_mut())
-            .zip(rot.iter_mut())
-            .enumerate();
-
-        for (i, ((_pos, _focus), _rot)) in iterable {
-            *_pos = gc.pos[i].to_fbe();
-            *_focus = gc.focus[i].to_fbe();
-            *_rot = gc.rot[i].to_fbe();
-        }
+        let pos: glm::Vec3 = [gc.pos[0].to_fbe(), gc.pos[1].to_fbe(), gc.pos[2].to_fbe()].into();
+        let focus: glm::Vec3 = [gc.focus[0].to_fbe(), gc.focus[1].to_fbe(), gc.focus[2].to_fbe()].into();
+        let rot: glm::Vec3 = [gc.rot[0].to_fbe(), gc.rot[1].to_fbe(), gc.rot[2].to_fbe()].into();
 
         Self {
             pos, focus, rot
@@ -67,34 +54,14 @@ impl CameraSnapshot {
         }
     }
 
-    pub fn distance_vector(&self, other: &CameraSnapshot) -> ([f32; 3], [f32; 3], [f32; 3]) {
-        let mut pos = [0f32; 3];
-        let mut focus = [0f32; 3];
-        let mut rot = [0f32; 3];
-
-        for i in 0..3 {
-            pos[i] = -(self.pos[i] - other.pos[i]);
-            focus[i] = -(self.focus[i] - other.focus[i]);
-            rot[i] = -(self.rot[i] - other.rot[i]);
-        }
-
-        return (pos, focus, rot)
-    }
-
     pub fn fraction(&self, fraction: f32) -> Self {
-        let mut vec = self.clone();
-
-        let iterable = vec.pos
-            .iter_mut()
-            .zip(vec.focus.iter_mut())
-            .zip(vec.rot.iter_mut());
-        for ((pos, focus), rot) in iterable {
-            *pos = *pos / fraction;
-            *focus = *focus / fraction;
-            *rot = *rot / fraction;
+        Self {
+            pos: self.pos / fraction,
+            focus: self.focus / fraction,
+            rot: self.rot / fraction,
         }
-        return vec;
     }
+
 }
 
 impl Interpolate for Vec<CameraSnapshot> {
@@ -105,7 +72,9 @@ impl Interpolate for Vec<CameraSnapshot> {
 
         // Calculate every distance vector between the `CameraSnapshot`s
         for w in self.windows(2) {
-            let (pos, focus, rot) = w[0].distance_vector(&w[1]);
+            let pos = w[1].pos - w[0].pos;
+            let focus = w[1].focus - w[0].focus;
+            let rot = w[1].rot - w[0].rot;
             moving_vectors.push(
                 CameraSnapshot { pos, focus, rot });
         }
