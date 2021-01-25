@@ -259,7 +259,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if check_key_press(winuser::VK_F10) & (points.len() > 1) {
-                let dur = std::time::Duration::from_secs(5);
+                let dur = std::time::Duration::from_secs(10);
                 points.interpolate(&mut (*gc), dur);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }

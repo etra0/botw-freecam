@@ -64,6 +64,15 @@ impl CameraSnapshot {
 
 }
 
+fn solve_eq(t: f32, p0: glm::Vec3, p1: glm::Vec3, p2: glm::Vec3, p3: glm::Vec3) -> glm::Vec3 {
+    let b0 = 0.5 * (-t.powi(3) + 2.*t.powi(2) - t);
+    let b1 = 0.5 * (3.*t.powi(3) - 5.*t.powi(2) + 2.);
+    let b2 = 0.5 * (-3.*t.powi(3) + 4.*t.powi(2) + t);
+    let b3 = 0.5 * (t.powi(3) - t.powi(2));
+
+    p0*b0 + p1*b1 + p2*b2 + p3*b3
+}
+
 impl Interpolate for Vec<CameraSnapshot> {
     fn interpolate(&self, gc: &mut GameCamera, duration: Duration) {
         // Distance vectors (relative vectors that will be added to the initial
@@ -79,27 +88,41 @@ impl Interpolate for Vec<CameraSnapshot> {
                 CameraSnapshot { pos, focus, rot });
         }
 
-        // Currently split the duration of every vector evenly, which causes
-        // that longer distances will be achieved more "fast"
-        // TODO: maybe make the duration relative to its distance?
-        let per_vector_duration = duration.checked_div(moving_vectors.len() as u32).unwrap();
-
         let sleep_duration = Duration::from_millis(20);
 
-        // Fraction will be the number of times we need to divide
-        // our relative vector to add it relatively to the camera position
-        let fraction = per_vector_duration.as_secs_f32() / sleep_duration.as_secs_f32();
+        let fraction = sleep_duration.as_secs_f32() / duration.as_secs_f32();
 
         self[0].set_inplace(gc);
 
-        for vec in moving_vectors {
-            let now = std::time::Instant::now();
-            let vec = vec.fraction(fraction);
-            // Add the relative vector until the time quota is met.
-            while now.elapsed() < per_vector_duration {
-                vec.move_camera(gc);
-                std::thread::sleep(sleep_duration);
+        macro_rules! bounds {
+            ($var:expr) => {
+                if $var < 0 {
+                    0
+                } else if $var >= (self.len() - 1) as i32 {
+                    (self.len() - 1) as i32
+                } else {
+                    $var
+                }
             }
+        }
+
+        let mut t = 0.;
+        let delta_t = 1. / ((self.len() - 1) as f32);
+        while t < 1. {
+            let p: i32 = (t / delta_t) as i32;
+            let p0 = bounds!(p - 1);
+            let p1 = bounds!(p);
+            let p2 = bounds!(p + 1);
+            let p3 = bounds!(p + 2);
+
+            let rt = (t - delta_t*(p as f32)) / delta_t;
+            let pos = solve_eq(rt, self[p0 as usize].pos, self[p1 as usize].pos, self[p2 as usize].pos, self[p3 as usize].pos);
+            let focus = solve_eq(rt, self[p0 as usize].focus, self[p1 as usize].focus, self[p2 as usize].focus, self[p3 as usize].focus);
+            let rot = solve_eq(rt, self[p0 as usize].rot, self[p1 as usize].rot, self[p2 as usize].rot, self[p3 as usize].rot);
+            let vec = CameraSnapshot { pos, focus, rot };
+            vec.set_inplace(gc);
+            t += fraction;
+            std::thread::sleep(sleep_duration);
         }
 
     }
