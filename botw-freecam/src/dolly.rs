@@ -3,6 +3,8 @@ use nalgebra_glm as glm;
 use std::convert::TryInto;
 use std::time::Duration;
 use crate::camera::*;
+use crate::utils::*;
+use winapi::um::winuser;
 
 #[derive(Debug, Clone)]
 pub struct CameraSnapshot {
@@ -88,7 +90,7 @@ impl Interpolate for Vec<CameraSnapshot> {
                 CameraSnapshot { pos, focus, rot });
         }
 
-        let sleep_duration = Duration::from_millis(20);
+        let sleep_duration = Duration::from_millis(10);
 
         let fraction = sleep_duration.as_secs_f32() / duration.as_secs_f32();
 
@@ -109,6 +111,10 @@ impl Interpolate for Vec<CameraSnapshot> {
         let mut t = 0.;
         let delta_t = 1. / ((self.len() - 1) as f32);
         while t < 1. {
+            if check_key_press(winuser::VK_F8) {
+                break;
+            }
+
             let p: i32 = (t / delta_t) as i32;
             let p0 = bounds!(p - 1);
             let p1 = bounds!(p);

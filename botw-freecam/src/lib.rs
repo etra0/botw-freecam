@@ -229,6 +229,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 nops.inject();
             } else {
                 nops.remove_injection();
+                points = vec![];
             }
 
             input.change_active = false;
@@ -247,25 +248,30 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
+            if check_key_press(winuser::VK_F7) {
+                nops.last_mut().unwrap().remove_injection();
+            }
+
             if check_key_press(winuser::VK_F9) {
                 let cs = CameraSnapshot::new(&(*gc));
                 println!("Point added to interpolation: {:?}", cs);
                 points.push(cs);
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                std::thread::sleep(std::time::Duration::from_millis(400));
             }
 
             if check_key_press(winuser::VK_F11) {
+                info!("Sequence cleaned!");
                 points = vec![];
+                std::thread::sleep(std::time::Duration::from_millis(400));
             }
 
             if check_key_press(winuser::VK_F10) & (points.len() > 1) {
-                let dur = std::time::Duration::from_secs(10);
+                let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
                 points.interpolate(&mut (*gc), dur);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
 
-            // let gc = (base_addr + 0x44E58260) as *mut GameCamera;
             (*gc).consume_input(&input);
             // println!("{:?}", *gc);
         }

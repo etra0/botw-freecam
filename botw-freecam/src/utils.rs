@@ -29,14 +29,10 @@ pub fn get_version() -> String {
 }
 
 /// Keys that aren't contained in the VirtualKeys from the Windows API.
+#[allow(dead_code)]
 #[repr(i32)]
 pub enum Keys {
-    A = 0x41,
-    D = 0x44,
-    E = 0x45,
-    Q = 0x51,
-    S = 0x53,
-    W = 0x57,
+    A = 0x41, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z
 }
 
 pub fn check_key_press(key: i32) -> bool {
@@ -63,6 +59,9 @@ pub struct Input {
     pub deattach: bool,
 
     pub speed_multiplier: f32,
+
+    pub dolly_duration: f32,
+    pub dolly_increment: f32,
 }
 
 impl Input {
@@ -71,6 +70,8 @@ impl Input {
             fov: 0.92,
             engine_speed: MINIMUM_ENGINE_SPEED,
             speed_multiplier: 1.,
+            dolly_duration: 10.,
+            dolly_increment: 0.01,
             ..Input::default()
         }
     }
@@ -93,6 +94,10 @@ impl Input {
         }
         if self.fov > 3.12 {
             self.fov = 3.12;
+        }
+
+        if self.dolly_duration < 0.1 {
+            self.dolly_duration = 0.1;
         }
 
         if self.engine_speed < MINIMUM_ENGINE_SPEED {
@@ -157,7 +162,19 @@ pub fn handle_keyboard(input: &mut Input) {
             [winuser::VK_F5, winuser::VK_F6, input.fov -= 0.02, input.fov += 0.02];
 
             [winuser::VK_F3, winuser::VK_F4, input.speed_multiplier -= 0.01, input.speed_multiplier += 0.01];
+
+            [Keys::O, Keys::P, { input.dolly_duration -= 0.01; println!("Dolly duration: {}", input.dolly_duration); }, { input.dolly_duration += 0.01; println!("Dolly duration: {}", input.dolly_duration); } ];
         }
+    }
+
+    if check_key_press(Keys::O as _) {
+        input.dolly_duration += input.dolly_increment;
+        input.dolly_increment *= 1.01;
+    } else if check_key_press(Keys::P as _) {
+        input.dolly_duration -= input.dolly_increment;
+        input.dolly_increment *= 1.01;
+    } else {
+        input.dolly_increment = 0.01
     }
 
     unsafe {
