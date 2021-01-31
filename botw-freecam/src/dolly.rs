@@ -14,7 +14,7 @@ pub struct CameraSnapshot {
 }
 
 pub trait Interpolate {
-    fn interpolate(&self, gc: &mut GameCamera, duration: Duration);
+    fn interpolate(&self, gc: &mut GameCamera, duration: Duration, loop_it: bool);
 }
 
 impl CameraSnapshot {
@@ -76,7 +76,7 @@ fn solve_eq(t: f32, p0: glm::Vec3, p1: glm::Vec3, p2: glm::Vec3, p3: glm::Vec3) 
 }
 
 impl Interpolate for Vec<CameraSnapshot> {
-    fn interpolate(&self, gc: &mut GameCamera, duration: Duration) {
+    fn interpolate(&self, gc: &mut GameCamera, duration: Duration, loop_it: bool) {
         // Distance vectors (relative vectors that will be added to the initial
         // camera position
         let mut moving_vectors: Vec<CameraSnapshot> = vec![];
@@ -98,10 +98,19 @@ impl Interpolate for Vec<CameraSnapshot> {
 
         macro_rules! bounds {
             ($var:expr) => {
+                // TODO: Check if this was the issue with the smooth transition
                 if $var < 0 {
-                    0
+                    if loop_it {
+                        (self.len() - 1) as i32
+                    } else {
+                        0
+                    }
                 } else if $var >= (self.len() - 1) as i32 {
-                    (self.len() - 1) as i32
+                    if loop_it {
+                        $var % (self.len()) as i32
+                    } else {
+                        (self.len() - 1) as i32
+                    }
                 } else {
                     $var
                 }
@@ -109,26 +118,38 @@ impl Interpolate for Vec<CameraSnapshot> {
         }
 
         let mut t = 0.;
-        let delta_t = 1. / ((self.len() - 1) as f32);
-        while t < 1. {
-            if check_key_press(winuser::VK_F8) {
-                break;
+        let delta_t = if loop_it {
+            1. / ((self.len()) as f32)
+        } else {
+            1. / ((self.len() - 1) as f32)
+        };
+
+        'outer: loop {
+            let mut t = 0.;
+            while t < 1. {
+                if check_key_press(winuser::VK_F8) {
+                    break 'outer;
+                }
+
+                let p: i32 = (t / delta_t) as i32;
+                let p0 = bounds!(p - 1);
+                let p1 = bounds!(p);
+                let p2 = bounds!(p + 1);
+                let p3 = bounds!(p + 2);
+
+                let rt = (t - delta_t*(p as f32)) / delta_t;
+                let pos = solve_eq(rt, self[p0 as usize].pos, self[p1 as usize].pos, self[p2 as usize].pos, self[p3 as usize].pos);
+                let focus = solve_eq(rt, self[p0 as usize].focus, self[p1 as usize].focus, self[p2 as usize].focus, self[p3 as usize].focus);
+                let rot = solve_eq(rt, self[p0 as usize].rot, self[p1 as usize].rot, self[p2 as usize].rot, self[p3 as usize].rot);
+                let vec = CameraSnapshot { pos, focus, rot };
+                vec.set_inplace(gc);
+                t += fraction;
+                std::thread::sleep(sleep_duration);
             }
 
-            let p: i32 = (t / delta_t) as i32;
-            let p0 = bounds!(p - 1);
-            let p1 = bounds!(p);
-            let p2 = bounds!(p + 1);
-            let p3 = bounds!(p + 2);
-
-            let rt = (t - delta_t*(p as f32)) / delta_t;
-            let pos = solve_eq(rt, self[p0 as usize].pos, self[p1 as usize].pos, self[p2 as usize].pos, self[p3 as usize].pos);
-            let focus = solve_eq(rt, self[p0 as usize].focus, self[p1 as usize].focus, self[p2 as usize].focus, self[p3 as usize].focus);
-            let rot = solve_eq(rt, self[p0 as usize].rot, self[p1 as usize].rot, self[p2 as usize].rot, self[p3 as usize].rot);
-            let vec = CameraSnapshot { pos, focus, rot };
-            vec.set_inplace(gc);
-            t += fraction;
-            std::thread::sleep(sleep_duration);
+            if !loop_it {
+                break;
+            }
         }
 
     }

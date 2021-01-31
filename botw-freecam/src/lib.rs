@@ -22,7 +22,7 @@ mod dolly;
 use camera::*;
 use dolly::*;
 use globals::*;
-use utils::{Input, dummy_xinput, error_message, handle_keyboard, check_key_press};
+use utils::{Input, dummy_xinput, error_message, handle_keyboard, check_key_press, Keys};
 
 use std::io::{self, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -267,7 +267,13 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
             if check_key_press(winuser::VK_F10) & (points.len() > 1) {
                 let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
-                points.interpolate(&mut (*gc), dur);
+                points.interpolate(&mut (*gc), dur, false);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
+            if check_key_press(Keys::L as _) & (points.len() > 1) {
+                let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
+                points.interpolate(&mut (*gc), dur, true);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
