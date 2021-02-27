@@ -14,14 +14,21 @@ Tested with Cemu 1.22.2 and Breath of the Wild v1.5.0 DLV Ver.3.0 (**Support for
 ## Controls:
 ```
 USAGE:
-F2 / L2 + Circle / RT + B\t\tActivation
-WASD + Arrow keys / Sticks\t\tCamera movement
-Q - E / R2 - L2 / RT - LT\t\tFov control
-PgUp - PgDown / R1 - L1 / RB - LB\tRotation
-F3 - F4 / dpad left - dpad right\tChange movement speed
-Shift / X / A\t\t\t\tAccelerates temporarily
+F2 / L2 + Circle / RT + B		Activation
+WASD + Arrow keys / Sticks		Camera movement
+Q - E / Square - Triangle / X - Y	Camera's height
+F5 - F6 / R2 - L2 / RT - LT		Fov control
+PgUp - PgDown / R1 - L1 / RB - LB	Rotation
+F3 - F4 / dpad left - dpad right	Change movement speed
+Shift / X / A				Accelerates temporarily
+----- Sequence keys -----
+F8					Breaks a current sequence playing
+F9					Add a point to the sequence
+F10					Plays the sequence
+F11					Cleans the sequence
+L					Plays the sequence in a loop (F8 to break it)
 ```
 
 # Thanks
-* Thanks to Exzap for the tech support
-* Thanks MelonSpeedruns & TheGordinho Ochinchin for testing
+* Thanks to Exzap for the help on Cemu's internals.
+* Thanks MelonSpeedruns, [SwankyBox](https://www.youtube.com/user/SwankyBox) & [TheGordinho Ochinchin](https://github.com/TheGordinho) for testing.

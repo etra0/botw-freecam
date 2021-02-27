@@ -16,11 +16,11 @@ PgUp - PgDown / R1 - L1 / RB - LB\tRotation
 F3 - F4 / dpad left - dpad right\tChange movement speed
 Shift / X / A\t\t\t\tAccelerates temporarily
 ----- Sequence keys -----
-F8\t\t\t\tBreaks a current sequence playing
-F9\t\t\t\tAdd a point to the sequence
-F10\t\t\t\tPlays the sequence
-F11\t\t\t\tCleans the sequence
-L\t\t\t\tPlays the sequence in a loop (F8 to break it)
+F8\t\t\t\t\tBreaks a current sequence playing
+F9\t\t\t\t\tAdd a point to the sequence
+F10\t\t\t\t\tPlays the sequence
+F11\t\t\t\t\tCleans the sequence
+L\t\t\t\t\tPlays the sequence in a loop (F8 to break it)
 ------------------------------";
 
 const CARGO_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
