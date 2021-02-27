@@ -8,9 +8,9 @@ use winapi::um::winuser;
 
 #[derive(Debug, Clone)]
 pub struct CameraSnapshot {
-    pos: glm::Vec3,
-    focus: glm::Vec3,
-    rot: glm::Vec3
+    pub pos: glm::Vec3,
+    pub focus: glm::Vec3,
+    pub rot: glm::Vec3
 }
 
 pub trait Interpolate {

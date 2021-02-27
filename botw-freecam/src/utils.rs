@@ -1,6 +1,7 @@
 use crate::globals::*;
 use std::ffi::CString;
 use winapi::um::{winuser, xinput};
+use nalgebra_glm as glm;
 
 const DEADZONE: i16 = 2000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
@@ -14,6 +15,11 @@ F5 - F6 / R2 - L2 / RT - LT\t\tFov control
 PgUp - PgDown / R1 - L1 / RB - LB\tRotation
 F3 - F4 / dpad left - dpad right\tChange movement speed
 Shift / X / A\t\t\t\tAccelerates temporarily
+----- Sequence keys -----
+F8\t\t\t\tBreaks a current sequence playing
+F9\t\t\t\tAdd a point to the sequence
+F10\t\t\t\tPlays the sequence
+F11\t\t\t\tCleans the sequence
 ------------------------------";
 
 const CARGO_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -37,6 +43,11 @@ pub enum Keys {
 
 pub fn check_key_press(key: i32) -> bool {
         return unsafe { winuser::GetAsyncKeyState(key) } as u32 & 0x8000 != 0 
+}
+
+pub fn calc_eucl_distance(a: &glm::Vec3, b: &glm::Vec3) -> f32 {
+    let diff = a - b;
+    glm::l2_norm(&diff)
 }
 
 #[derive(Default, Debug)]
@@ -163,14 +174,13 @@ pub fn handle_keyboard(input: &mut Input) {
 
             [winuser::VK_F3, winuser::VK_F4, input.speed_multiplier -= 0.01, input.speed_multiplier += 0.01];
 
-            [Keys::O, Keys::P, { input.dolly_duration -= 0.01; println!("Dolly duration: {}", input.dolly_duration); }, { input.dolly_duration += 0.01; println!("Dolly duration: {}", input.dolly_duration); } ];
         }
     }
 
-    if check_key_press(Keys::O as _) {
+    if check_key_press(Keys::P as _) {
         input.dolly_duration += input.dolly_increment;
         input.dolly_increment *= 1.01;
-    } else if check_key_press(Keys::P as _) {
+    } else if check_key_press(Keys::O as _) {
         input.dolly_duration -= input.dolly_increment;
         input.dolly_increment *= 1.01;
     } else {
