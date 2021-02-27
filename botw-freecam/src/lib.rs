@@ -3,24 +3,27 @@ use memory_rs::internal::{
     memory::{resolve_module_path, scan_aob},
     process_info::ProcessInfo,
 };
+use nalgebra_glm as glm;
 use std::ffi::CString;
+use winapi::um::consoleapi::AllocConsole;
 use winapi::um::libloaderapi::{FreeLibraryAndExitThread, GetModuleHandleA};
 use winapi::um::wincon::FreeConsole;
 use winapi::um::winuser;
 use winapi::um::xinput;
-use winapi::um::{consoleapi::AllocConsole, winuser::GetAsyncKeyState};
 use winapi::{shared::minwindef::LPVOID, um::libloaderapi::GetProcAddress};
 
 use log::*;
 use simplelog::*;
 
 mod camera;
+mod dolly;
 mod globals;
 mod utils;
 
 use camera::*;
+use dolly::*;
 use globals::*;
-use utils::{Input, dummy_xinput, error_message, handle_keyboard};
+use utils::{check_key_press, dummy_xinput, error_message, handle_keyboard, Input, Keys};
 
 use std::io::{self, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -106,7 +109,7 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
         let camera_offset =
             unsafe { std::slice::from_raw_parts((function_start + 0x2E0) as *const u8, 10) };
 
-        if &original_bytes == camera_offset {
+        if original_bytes == camera_offset {
             info!("Camera function found");
             break function_start + 0x2E0;
         }
@@ -135,8 +138,8 @@ fn block_xinput(proc_inf: &ProcessInfo) -> Result<Injection, Box<dyn std::error:
         proc_inf.region.size,
         pat.1,
         pat.0,
-    )
-    ?.ok_or("XInput blocker couldn't be found")?;
+    )?
+    .ok_or("XInput blocker couldn't be found")?;
 
     let rip = function_addr - 10;
     let offset = unsafe { *((rip + 3) as *const u32) as usize + rip + 7 };
@@ -161,6 +164,8 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut active = false;
 
+    let mut points: Vec<CameraSnapshot> = vec![];
+
     let camera_struct = get_camera_function()?;
     info!("{:x?}", camera_struct);
     let camera_pointer = camera_struct.camera;
@@ -183,7 +188,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         Injection::new(camera_struct.camera + 0x4C, vec![0x90; 10]),
         Injection::new(camera_struct.camera + 0x17, vec![0x90; 10]),
         Injection::new(camera_struct.camera + 0x98, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x1Df, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x1DF, vec![0x90; 10]),
         // Fov
         Injection::new(camera_struct.camera + 0xAF, vec![0x90; 10]),
         // Rotation
@@ -193,8 +198,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         Injection::new(camera_struct.rotation_vec2, vec![0x90; 7]),
         Injection::new(camera_struct.rotation_vec2 - 0x14, vec![0x90; 7]),
         Injection::new(camera_struct.rotation_vec2 - 0x28, vec![0x90; 7]),
-
-        block_xinput(&proc_inf)?
+        block_xinput(&proc_inf)?,
     ];
 
     cam.inject();
@@ -207,7 +211,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         handle_keyboard(&mut input);
         input.sanitize();
 
-        if input.deattach || (unsafe { GetAsyncKeyState(winuser::VK_HOME) } as u32 & 0x8000) != 0 {
+        if input.deattach || check_key_press(winuser::VK_HOME) {
             info!("Exiting");
             break;
         }
@@ -235,7 +239,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             // If we don't have the camera struct we need to skip it right away
             if g_camera_struct == 0x0 {
                 continue;
-            } 
+            }
 
             let gc = g_camera_struct as *mut GameCamera;
             if !active {
@@ -243,10 +247,51 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
+            // TODO: Maybe remove this
+            // if check_key_press(winuser::VK_F7) {
+            //     nops.last_mut().unwrap().remove_injection();
+            // }
 
-            // let gc = (base_addr + 0x44E58260) as *mut GameCamera;
+            if !points.is_empty() {
+                let a = glm::vec3(
+                    (*gc).pos[0].to_fbe(),
+                    (*gc).pos[1].to_fbe(),
+                    (*gc).pos[2].to_fbe(),
+                );
+                let b = points[0].pos;
+                if utils::calc_eucl_distance(&a, &b) > 760. {
+                    warn!("Sequence cleaned to prevent game crashing");
+                    points.clear();
+                }
+            }
+
+            if check_key_press(winuser::VK_F9) {
+                let cs = CameraSnapshot::new(&(*gc));
+                info!("Point added to interpolation: {:?}", cs);
+                points.push(cs);
+                std::thread::sleep(std::time::Duration::from_millis(400));
+            }
+
+            if check_key_press(winuser::VK_F11) {
+                info!("Sequence cleaned!");
+                points.clear();
+                std::thread::sleep(std::time::Duration::from_millis(400));
+            }
+
+            if check_key_press(winuser::VK_F10) & (points.len() > 1) {
+                let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
+                points.interpolate(&mut (*gc), dur, false);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
+            if check_key_press(Keys::L as _) & (points.len() > 1) {
+                let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
+                points.interpolate(&mut (*gc), dur, true);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
             (*gc).consume_input(&input);
-            println!("{:?}", *gc);
+            // println!("{:?}", *gc);
         }
 
         input.reset();
