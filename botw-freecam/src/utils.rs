@@ -1,12 +1,12 @@
 use crate::globals::*;
+use nalgebra_glm as glm;
 use std::ffi::CString;
 use winapi::um::{winuser, xinput};
-use nalgebra_glm as glm;
 
 const DEADZONE: i16 = 2000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
 
-pub const INSTRUCTIONS: &'static str = "------------------------------
+pub const INSTRUCTIONS: &str = "------------------------------
 USAGE:
 F2 / L2 + Circle / RT + B\t\tActivation
 WASD + Arrow keys / Sticks\t\tCamera movement
@@ -20,6 +20,7 @@ F8\t\t\t\tBreaks a current sequence playing
 F9\t\t\t\tAdd a point to the sequence
 F10\t\t\t\tPlays the sequence
 F11\t\t\t\tCleans the sequence
+L\t\t\t\tPlays the sequence in a loop (F8 to break it)
 ------------------------------";
 
 const CARGO_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -38,11 +39,36 @@ pub fn get_version() -> String {
 #[allow(dead_code)]
 #[repr(i32)]
 pub enum Keys {
-    A = 0x41, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z
+    A = 0x41,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
 }
 
 pub fn check_key_press(key: i32) -> bool {
-        return unsafe { winuser::GetAsyncKeyState(key) } as u32 & 0x8000 != 0 
+    (unsafe { winuser::GetAsyncKeyState(key) } as u32) & 0x8000 != 0
 }
 
 pub fn calc_eucl_distance(a: &glm::Vec3, b: &glm::Vec3) -> f32 {

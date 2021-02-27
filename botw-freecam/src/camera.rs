@@ -1,8 +1,5 @@
 use crate::utils::*;
 use nalgebra_glm as glm;
-use std::convert::TryInto;
-use std::time::Duration;
-use crate::dolly::*;
 
 #[repr(C)]
 pub struct GameCamera {
@@ -46,13 +43,13 @@ pub trait FromF32ToU32BigEndian {
 
 impl FromU32BigEndianToFloat for u32 {
     fn to_fbe(&self) -> f32 {
-        unsafe { std::mem::transmute(u32::from_be(*self)) }
+        f32::from_bits(u32::from_be(*self))
     }
 }
 
 impl FromF32ToU32BigEndian for f32 {
     fn to_u32(&self) -> u32 {
-        let val: u32 = unsafe { std::mem::transmute::<f32, u32>(*self) };
+        let val: u32 = (*self).to_bits();
         val.to_be()
     }
 }
@@ -75,7 +72,8 @@ impl GameCamera {
             (self.pos[0].to_fbe() + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z)
                 .to_u32();
 
-        self.pos[1] = (self.pos[1].to_fbe() + r_cam_y * input.delta_pos.1 + input.delta_altitude).to_u32();
+        self.pos[1] =
+            (self.pos[1].to_fbe() + r_cam_y * input.delta_pos.1 + input.delta_altitude).to_u32();
 
         self.pos[2] = (self.pos[2].to_fbe() + r_cam_z * input.delta_pos.1
             - input.delta_pos.0 * r_cam_x)
@@ -141,4 +139,3 @@ impl GameCamera {
         [result[0], result[1], result[2]]
     }
 }
-
