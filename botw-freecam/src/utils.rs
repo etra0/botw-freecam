@@ -21,6 +21,7 @@ F9\t\t\t\t\tAdd a point to the sequence
 F10\t\t\t\t\tPlays the sequence
 F11\t\t\t\t\tCleans the sequence
 L\t\t\t\t\tPlays the sequence in a loop (F8 to break it)
+O/P\t\t\t\t\tChange the duration of the sequence
 ------------------------------";
 
 const CARGO_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -206,9 +207,11 @@ pub fn handle_keyboard(input: &mut Input) {
     if check_key_press(Keys::P as _) {
         input.dolly_duration += input.dolly_increment;
         input.dolly_increment *= 1.01;
+        println!("Duration: {}", input.dolly_duration);
     } else if check_key_press(Keys::O as _) {
         input.dolly_duration -= input.dolly_increment;
         input.dolly_increment *= 1.01;
+        println!("Duration: {}", input.dolly_duration);
     } else {
         input.dolly_increment = 0.01
     }

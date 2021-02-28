@@ -27,6 +27,7 @@ F9					Add a point to the sequence
 F10					Plays the sequence
 F11					Cleans the sequence
 L					Plays the sequence in a loop (F8 to break it)
+O/P					Change the duration of the sequence
 ```
 
 # Thanks
