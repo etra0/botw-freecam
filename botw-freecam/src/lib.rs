@@ -232,6 +232,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 nops.inject();
             } else {
                 nops.remove_injection();
+                starting_point = None;
             }
 
             input.change_active = false;
@@ -254,6 +255,19 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 starting_point = Some(CameraSnapshot::new(&(*gc)));
             }
 
+            if let Some(ref p) = starting_point {
+                let cp = (*gc).pos.clone().into();
+                let cf: glm::Vec3 = (*gc).focus.clone().into();
+                let delta_view = cf - cp;
+                let distance = utils::calc_eucl_distance(&p.pos, &cp);
+                if distance > 400. {
+                    let norm = glm::normalize(&(cp - p.pos));
+
+                    (*gc).pos = (p.pos + norm*380.).into();
+                    (*gc).focus = (p.pos + norm*380. + delta_view).into();
+                }
+            }
+
             // TODO: Maybe remove this
             // if check_key_press(winuser::VK_F7) {
             //     nops.last_mut().unwrap().remove_injection();
@@ -261,7 +275,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
             if !points.is_empty() {
                 let origin = (*gc).pos.clone().into();
-                if utils::calc_eucl_distance(&origin, &points[0].pos) > 760. {
+                if utils::calc_eucl_distance(&origin, &points[0].pos) > 400. {
                     warn!("Sequence cleaned to prevent game crashing");
                     points.clear();
                 }
