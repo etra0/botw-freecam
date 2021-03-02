@@ -1,29 +1,38 @@
 use crate::utils::*;
 use nalgebra_glm as glm;
 
+#[derive(Clone, Copy)]
+pub struct Vec3BE(pub [u32; 3]);
+
+impl From<Vec3BE> for glm::TVec3<f32> {
+    fn from(v: Vec3BE) -> Self {
+        let v = v.0;
+        glm::vec3(v[0].to_fbe(), v[1].to_fbe(), v[2].to_fbe())
+    }  
+}
+
+impl From<glm::TVec3<f32>> for Vec3BE {
+    fn from(v: glm::TVec3<f32>) -> Self {
+        Vec3BE([v[0].to_u32(), v[1].to_u32(), v[2].to_u32()])
+    }
+}
+
 #[repr(C)]
 pub struct GameCamera {
-    pub pos: [u32; 3],
-    pub focus: [u32; 3],
+    pub pos: Vec3BE,
+    pub focus: Vec3BE,
     // Unknown values (padding)
-    pub unk: [u32; 3],
+    pub unk: Vec3BE,
     pub fov: u32,
     pub unk2: [u32; 24],
-    pub rot: [u32; 3],
+    pub rot: Vec3BE,
 }
 
 impl std::fmt::Debug for GameCamera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ptr = self as *const GameCamera as usize;
-        let pos: Vec<f32> = Vec::from(self.pos)
-            .into_iter()
-            .map(|x| x.to_fbe())
-            .collect();
-
-        let focus: Vec<f32> = Vec::from(self.focus)
-            .into_iter()
-            .map(|x| x.to_fbe())
-            .collect();
+        let pos: glm::Vec3 = self.pos.into();
+        let focus: glm::Vec3 = self.focus.into();
 
         f.debug_struct("GameCamera")
             .field("self", &format_args!("{:x}", ptr))
@@ -56,9 +65,9 @@ impl FromF32ToU32BigEndian for f32 {
 
 impl GameCamera {
     pub fn consume_input(&mut self, input: &Input) {
-        let r_cam_x = self.focus[0].to_fbe() - self.pos[0].to_fbe();
-        let r_cam_y = self.focus[1].to_fbe() - self.pos[1].to_fbe();
-        let r_cam_z = self.focus[2].to_fbe() - self.pos[2].to_fbe();
+        let r_cam_x = self.focus.0[0].to_fbe() - self.pos.0[0].to_fbe();
+        let r_cam_y = self.focus.0[1].to_fbe() - self.pos.0[1].to_fbe();
+        let r_cam_z = self.focus.0[2].to_fbe() - self.pos.0[2].to_fbe();
 
         let (r_cam_x, r_cam_z, r_cam_y) = GameCamera::calc_new_focus_point(
             r_cam_x,
@@ -68,36 +77,27 @@ impl GameCamera {
             input.delta_focus.1,
         );
 
-        self.pos[0] =
-            (self.pos[0].to_fbe() + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z)
+        self.pos.0[0] =
+            (self.pos.0[0].to_fbe() + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z)
                 .to_u32();
 
-        self.pos[1] =
-            (self.pos[1].to_fbe() + r_cam_y * input.delta_pos.1 + input.delta_altitude).to_u32();
+        self.pos.0[1] =
+            (self.pos.0[1].to_fbe() + r_cam_y * input.delta_pos.1 + input.delta_altitude).to_u32();
 
-        self.pos[2] = (self.pos[2].to_fbe() + r_cam_z * input.delta_pos.1
+        self.pos.0[2] = (self.pos.0[2].to_fbe() + r_cam_z * input.delta_pos.1
             - input.delta_pos.0 * r_cam_x)
             .to_u32();
 
-        self.focus[0] = (self.pos[0].to_fbe() + r_cam_x).to_u32();
-        self.focus[1] = (self.pos[1].to_fbe() + r_cam_y).to_u32();
-        self.focus[2] = (self.pos[2].to_fbe() + r_cam_z).to_u32();
+        self.focus.0[0] = (self.pos.0[0].to_fbe() + r_cam_x).to_u32();
+        self.focus.0[1] = (self.pos.0[1].to_fbe() + r_cam_y).to_u32();
+        self.focus.0[2] = (self.pos.0[2].to_fbe() + r_cam_z).to_u32();
 
-        let pos_ = glm::vec3(
-            self.pos[0].to_fbe(),
-            self.pos[1].to_fbe(),
-            self.pos[2].to_fbe(),
-        );
-        let focus_ = glm::vec3(
-            self.focus[0].to_fbe(),
-            self.focus[1].to_fbe(),
-            self.focus[2].to_fbe(),
-        );
-
+        let pos_ = glm::Vec3::from(self.pos);
+        let focus_ = glm::Vec3::from(self.focus);
         let result = GameCamera::calculate_rotation(focus_, pos_, input.delta_rotation);
-        self.rot[0] = result[0].to_u32();
-        self.rot[1] = result[1].to_u32();
-        self.rot[2] = result[2].to_u32();
+        self.rot.0[0] = result[0].to_u32();
+        self.rot.0[1] = result[1].to_u32();
+        self.rot.0[2] = result[2].to_u32();
 
         self.fov = input.fov.to_u32();
     }

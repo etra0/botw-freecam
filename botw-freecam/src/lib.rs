@@ -165,6 +165,9 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
     let mut active = false;
 
     let mut points: Vec<CameraSnapshot> = vec![];
+    
+    // This variable will hold the initial position when the freecamera is activated.
+    let mut starting_point: Option<CameraSnapshot> = None;
 
     let camera_struct = get_camera_function()?;
     info!("{:x?}", camera_struct);
@@ -247,19 +250,18 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
+            if starting_point.is_none() {
+                starting_point = Some(CameraSnapshot::new(&(*gc)));
+            }
+
             // TODO: Maybe remove this
             // if check_key_press(winuser::VK_F7) {
             //     nops.last_mut().unwrap().remove_injection();
             // }
 
             if !points.is_empty() {
-                let a = glm::vec3(
-                    (*gc).pos[0].to_fbe(),
-                    (*gc).pos[1].to_fbe(),
-                    (*gc).pos[2].to_fbe(),
-                );
-                let b = points[0].pos;
-                if utils::calc_eucl_distance(&a, &b) > 760. {
+                let origin = (*gc).pos.clone().into();
+                if utils::calc_eucl_distance(&origin, &points[0].pos) > 760. {
                     warn!("Sequence cleaned to prevent game crashing");
                     points.clear();
                 }

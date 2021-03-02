@@ -6,9 +6,9 @@ use winapi::um::winuser;
 
 #[derive(Debug, Clone)]
 pub struct CameraSnapshot {
-    pub pos: glm::Vec3,
-    pub focus: glm::Vec3,
-    pub rot: glm::Vec3,
+    pub pos: glm::TVec3<f32>,
+    pub focus: glm::TVec3<f32>,
+    pub rot: glm::TVec3<f32>,
 }
 
 pub trait Interpolate {
@@ -17,31 +17,17 @@ pub trait Interpolate {
 
 impl CameraSnapshot {
     pub fn new(gc: &GameCamera) -> Self {
-        let pos: glm::Vec3 = [gc.pos[0].to_fbe(), gc.pos[1].to_fbe(), gc.pos[2].to_fbe()].into();
-        let focus: glm::Vec3 = [
-            gc.focus[0].to_fbe(),
-            gc.focus[1].to_fbe(),
-            gc.focus[2].to_fbe(),
-        ]
-        .into();
-        let rot: glm::Vec3 = [gc.rot[0].to_fbe(), gc.rot[1].to_fbe(), gc.rot[2].to_fbe()].into();
+        let pos: glm::Vec3 = gc.pos.into();
+        let focus: glm::Vec3 = gc.focus.into();
+        let rot: glm::Vec3 = gc.rot.into();
 
         Self { pos, focus, rot }
     }
 
     pub fn set_inplace(&self, gc: &mut GameCamera) {
-        let iterable = gc
-            .pos
-            .iter_mut()
-            .zip(gc.focus.iter_mut())
-            .zip(gc.rot.iter_mut())
-            .enumerate();
-
-        for (i, ((_pos, _focus), _rot)) in iterable {
-            *_pos = self.pos[i].to_u32();
-            *_focus = self.focus[i].to_u32();
-            *_rot = self.rot[i].to_u32();
-        }
+        gc.pos = self.pos.into();
+        gc.focus = self.focus.into();
+        gc.rot = self.rot.into()
     }
 }
 
