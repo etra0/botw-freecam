@@ -56,18 +56,6 @@ fn solve_eq(t: f32, p0: glm::Vec3, p1: glm::Vec3, p2: glm::Vec3, p3: glm::Vec3) 
 
 impl Interpolate for Vec<CameraSnapshot> {
     fn interpolate(&self, gc: &mut GameCamera, duration: Duration, loop_it: bool) {
-        // Distance vectors (relative vectors that will be added to the initial
-        // camera position
-        let mut moving_vectors: Vec<CameraSnapshot> = vec![];
-
-        // Calculate every distance vector between the `CameraSnapshot`s
-        for w in self.windows(2) {
-            let pos = w[1].pos - w[0].pos;
-            let focus = w[1].focus - w[0].focus;
-            let rot = w[1].rot - w[0].rot;
-            moving_vectors.push(CameraSnapshot { pos, focus, rot });
-        }
-
         let sleep_duration = Duration::from_millis(10);
 
         let fraction = sleep_duration.as_secs_f32() / duration.as_secs_f32();
