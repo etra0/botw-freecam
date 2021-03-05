@@ -10,6 +10,7 @@ This is a BOTW Freecam. Simply run it and it should work.
 Tested with Cemu 1.22.2 and Breath of the Wild v1.5.0 DLV Ver.3.0 (**Support for other versions is not assured**)
 
 ## WARNING: If you close the console it'll close the game. Press HOME to close it.
+## If you run Cemu as admin, you **must** run the admin as tool as well.
 
 ## Controls:
 ```

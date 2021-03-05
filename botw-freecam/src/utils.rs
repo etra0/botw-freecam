@@ -3,7 +3,7 @@ use nalgebra_glm as glm;
 use std::ffi::CString;
 use winapi::um::{winuser, xinput};
 
-const DEADZONE: i16 = 2000;
+const DEADZONE: i16 = 10000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
 
 pub const INSTRUCTIONS: &str = "------------------------------
