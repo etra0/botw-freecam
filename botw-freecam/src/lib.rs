@@ -103,18 +103,24 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     // As Exzap said, "It will only compile it once its executed. Before that the table points to a placeholder function"
     // So we'll wait until the game is in the world and the code will be recompiled, then the pointer should be changed to the right function.
     // Once is resolved, we can lookup the rest of the functions since the camera we assume the camera is active
+    let dummy_pointer = array[0];
     info!("Waiting for the game to start");
     let camera_offset = loop {
         let function_start = array[0x2C053DC / 4];
-        let camera_offset =
-            unsafe { std::slice::from_raw_parts((function_start + 0x2E0) as *const u8, 10) };
+        
 
-        if original_bytes == camera_offset {
-            info!("Camera function found");
+        if dummy_pointer != function_start {
+            info!("Pointer found");
             break function_start + 0x2E0;
         }
         std::thread::sleep(std::time::Duration::from_secs(1))
     };
+
+    let camera_bytes =
+            unsafe { std::slice::from_raw_parts((camera_offset) as *const u8, 10) };
+    if camera_bytes != original_bytes {
+        return Err(format!("Function signature doesn't match, This means you're using a different version, make sure you have the one described on the README.md\n{:x?} != {:x?}", camera_bytes, original_bytes).into());
+    }
 
     let rotation_vec1 = array[0x2c085f0 / 4] + 0x192;
     let rotation_vec2 = array[0x2e57fdc / 4] + 0x7f;
