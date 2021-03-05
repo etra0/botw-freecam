@@ -7,10 +7,11 @@
 
 This is a BOTW Freecam. Simply run it and it should work.
 
-Tested with Cemu 1.22.2 and Breath of the Wild v1.5.0 DLV Ver.3.0 (**Support for other versions is not assured**)
+Tested with Cemu 1.22.2 and Breath of the Wild v1.5.0 DLC Ver.3.0 (**Support for other versions is not assured**)
 
-## WARNING: If you close the console it'll close the game. Press HOME to close it.
-## If you run Cemu as admin, you **must** run the admin as tool as well.
+**WARNING: If you close the console it'll close the game. Press HOME to close it.**
+
+**If you run Cemu as admin, you **must** run the tool as admin as well.**
 
 ## Controls:
 ```
@@ -34,3 +35,4 @@ O/P					Change the duration of the sequence
 # Thanks
 * Thanks to Exzap for the help on Cemu's internals.
 * Thanks MelonSpeedruns, [SwankyBox](https://www.youtube.com/user/SwankyBox) & [TheGordinho Ochinchin](https://github.com/TheGordinho) for testing.
+* Thanks for all the supporters! I greatly appreciate it!
