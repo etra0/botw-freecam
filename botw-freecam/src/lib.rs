@@ -312,6 +312,19 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
+            if check_key_press(winuser::VK_F7) {
+                input.unlock_character = !input.unlock_character;
+                if input.unlock_character {
+                    nops.last_mut().unwrap().remove_injection();
+                } else {
+                    nops.last_mut().unwrap().inject();
+                }
+                info!("Unlock character: {}", input.unlock_character);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
+            if input.unlock_character { continue };
+
             (*gc).consume_input(&input);
             // println!("{:?}", *gc);
         }

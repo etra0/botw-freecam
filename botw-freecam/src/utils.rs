@@ -15,6 +15,7 @@ F5 - F6 / R2 - L2 / RT - LT\t\tFov control
 PgUp - PgDown / R1 - L1 / RB - LB\tRotation
 F3 - F4 / dpad left - dpad right\tChange movement speed
 Shift / X / A\t\t\t\tAccelerates temporarily
+F7\t\t\t\t\tUnlock the character (Locks the camera)
 ----- Sequence keys -----
 F8\t\t\t\t\tBreaks a current sequence playing
 F9\t\t\t\t\tAdd a point to the sequence
@@ -100,6 +101,8 @@ pub struct Input {
 
     pub dolly_duration: f32,
     pub dolly_increment: f32,
+
+    pub unlock_character: bool,
 }
 
 impl Input {
