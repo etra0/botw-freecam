@@ -14,8 +14,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Set git version
+      run: echo "GIT_VERSION=$(git.exe rev-parse --short HEAD)" >> $env:GITHUB_ENV
+
     - name: Build
       run: cargo build --release
+
     - name: Pack Release files
       run: |
         Copy target/release/botw_freecam.dll ./botw_freecam.dll
