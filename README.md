@@ -13,6 +13,8 @@ Tested with Cemu 1.22.2 and Breath of the Wild v1.5.0 DLC Ver.3.0 (**Support for
 
 **If you run Cemu as admin, you **must** run the tool as admin as well.**
 
+**If your CPU is pre 2016, this tool may not work for you right now**
+
 ## Controls:
 ```
 USAGE:

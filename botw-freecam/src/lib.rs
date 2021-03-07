@@ -106,12 +106,12 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     let dummy_pointer = array[0];
     info!("Waiting for the game to start");
     let camera_offset = loop {
-        let function_start = array[0x2C053DC / 4];
+        let function_start = array[0x2C05484 / 4];
         
 
         if dummy_pointer != function_start {
             info!("Pointer found");
-            break function_start + 0x2E0;
+            break function_start + 0x6C;
         }
         std::thread::sleep(std::time::Duration::from_secs(1))
     };
@@ -119,10 +119,14 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     let camera_bytes =
             unsafe { std::slice::from_raw_parts((camera_offset) as *const u8, 10) };
     if camera_bytes != original_bytes {
-        return Err(format!("Function signature doesn't match, This means you're using a different version, make sure you have the one described on the README.md\n{:x?} != {:x?}", camera_bytes, original_bytes).into());
+        return Err(format!(
+            "Function signature doesn't match, This can mean two things:\n\n\
+            * You're using a pre 2016 CPU (your cpu doesn't support `movbe`)\n\
+            * You're not using the version described on the README.md\n\
+            {:x?} != {:x?}", camera_bytes, original_bytes).into());
     }
 
-    let rotation_vec1 = array[0x2c085f0 / 4] + 0x192;
+    let rotation_vec1 = array[0x2C085FC / 4] + 0x157;
     let rotation_vec2 = array[0x2e57fdc / 4] + 0x7f;
 
     Ok(CameraOffsets {
