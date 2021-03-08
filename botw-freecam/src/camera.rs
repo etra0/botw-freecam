@@ -95,9 +95,7 @@ impl GameCamera {
         let pos_ = glm::Vec3::from(self.pos);
         let focus_ = glm::Vec3::from(self.focus);
         let result = GameCamera::calculate_rotation(focus_, pos_, input.delta_rotation);
-        self.rot.0[0] = result[0].to_u32();
-        self.rot.0[1] = result[1].to_u32();
-        self.rot.0[2] = result[2].to_u32();
+        self.rot = result.into();
 
         self.fov = input.fov.to_u32();
     }
@@ -123,19 +121,19 @@ impl GameCamera {
         (r_cam_x, r_cam_z, r_cam_y)
     }
 
-    pub fn calculate_rotation(focus: glm::Vec3, pos: glm::Vec3, rotation: f32) -> [f32; 3] {
+    pub fn calculate_rotation(focus: glm::Vec3, pos: glm::Vec3, rotation: f32) -> glm::TVec3<f32> {
         let up = glm::vec3(0., 1., 0.);
 
+        // Calculate the matrix from the look_at
         let m_look_at = glm::look_at(&focus, &pos, &up);
-        let direction = {
-            let row = m_look_at.row(2);
-            glm::vec3(row[0], row[1], row[2])
-        };
-        // let axis = glm::vec3(0., 0., 1.);
-        let m_new = glm::rotate_normalized_axis(&m_look_at, rotation, &direction);
 
-        let result = m_new.row(1);
+        // Get the focus-pos axis
+        let direction =  m_look_at.fixed_rows::<glm::U1>(2).transpose().xyz();
 
-        [result[0], result[1], result[2]]
+        // Calculate the rotation from the focus-pos axis
+        let m_new = glm::rotate_normalized_axis(&m_look_at, -rotation, &direction);
+
+        // Get the new up-vector
+        m_new.fixed_rows::<glm::U1>(1).transpose().xyz()
     }
 }
