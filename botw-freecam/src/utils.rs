@@ -15,6 +15,7 @@ F5 - F6 / R2 - L2 / RT - LT\t\tFov control
 PgUp - PgDown / R1 - L1 / RB - LB\tRotation
 F3 - F4 / dpad left - dpad right\tChange movement speed
 Shift / X / A\t\t\t\tAccelerates temporarily
+Tab / Circle / B\t\t\tAccelerates temporarily
 F7\t\t\t\t\tUnlock the character (Locks the camera)
 ----- Sequence keys -----
 F8\t\t\t\t\tBreaks a current sequence playing
@@ -38,35 +39,11 @@ pub fn get_version() -> String {
 }
 
 /// Keys that aren't contained in the VirtualKeys from the Windows API.
-#[allow(dead_code)]
 #[repr(i32)]
+#[rustfmt::skip]
+#[allow(dead_code)]
 pub enum Keys {
-    A = 0x41,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
+    A = 0x41, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
 }
 
 pub fn check_key_press(key: i32) -> bool {
@@ -219,12 +196,16 @@ pub fn handle_keyboard(input: &mut Input) {
         input.dolly_increment = 0.01
     }
 
-    unsafe {
-        if winuser::GetAsyncKeyState(winuser::VK_LSHIFT) as u32 & 0x8000 != 0 {
-            input.delta_pos.0 *= 8.;
-            input.delta_pos.1 *= 8.;
-            input.delta_altitude *= 8.;
-        }
+    if check_key_press(winuser::VK_LSHIFT) {
+        input.delta_pos.0 *= 8.;
+        input.delta_pos.1 *= 8.;
+        input.delta_altitude *= 8.;
+    }
+
+    if check_key_press(winuser::VK_TAB) {
+        input.delta_pos.0 *= 0.5;
+        input.delta_pos.1 *= 0.5;
+        input.delta_altitude *= 0.5;
     }
 
     input.delta_pos.0 *= input.speed_multiplier;
@@ -318,8 +299,8 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
     input.delta_pos.1 =
         (dead_zone!(gp.sThumbLY) as f32) / ((i16::MAX as f32) * 1e2) * input.speed_multiplier;
 
-    input.delta_focus.0 = (dead_zone!(gp.sThumbRX) as f32) / ((i16::MAX as f32) * 1e2);
-    input.delta_focus.1 = -(dead_zone!(gp.sThumbRY) as f32) / ((i16::MAX as f32) * 1e2);
+    input.delta_focus.0 = (dead_zone!(gp.sThumbRX) as f32) / ((i16::MAX as f32) * 4e1);
+    input.delta_focus.1 = -(dead_zone!(gp.sThumbRY) as f32) / ((i16::MAX as f32) * 4e1);
 
     input.delta_altitude *= input.speed_multiplier;
 
@@ -327,6 +308,12 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         input.delta_pos.0 *= 8.;
         input.delta_pos.1 *= 8.;
         input.delta_altitude *= 8.;
+    }
+
+    if gp.wButtons & 0x2000 != 0 {
+        input.delta_pos.0 *= 0.5;
+        input.delta_pos.1 *= 0.5;
+        input.delta_altitude *= 0.5;
     }
 }
 

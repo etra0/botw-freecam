@@ -11,6 +11,8 @@ Tested with Cemu 1.22.2 and Breath of the Wild v1.5.0 DLC Ver.3.0 (**Support for
 
 **WARNING: If you close the console it'll close the game. Press HOME to close it.**
 
+**This tool can be flagged as a virus, check https://github.com/etra0/botw-freecam/issues/17**
+
 **If you run Cemu as admin, you **must** run the tool as admin as well.**
 
 **If your CPU is pre 2016, this tool may not work for you right now**
@@ -25,6 +27,8 @@ F5 - F6 / R2 - L2 / RT - LT		Fov control
 PgUp - PgDown / R1 - L1 / RB - LB	Rotation
 F3 - F4 / dpad left - dpad right	Change movement speed
 Shift / X / A				Accelerates temporarily
+Tab / Circle / B			Deaccelerates temporarily
+F7					Unlock the character (Locks the camera)
 ----- Sequence keys -----
 F8					Breaks a current sequence playing
 F9					Add a point to the sequence

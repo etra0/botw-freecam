@@ -8,7 +8,7 @@ impl From<Vec3BE> for glm::TVec3<f32> {
     fn from(v: Vec3BE) -> Self {
         let v = v.0;
         glm::vec3(v[0].to_fbe(), v[1].to_fbe(), v[2].to_fbe())
-    }  
+    }
 }
 
 impl From<glm::TVec3<f32>> for Vec3BE {
@@ -22,9 +22,9 @@ pub struct GameCamera {
     pub pos: Vec3BE,
     pub focus: Vec3BE,
     // Unknown values (padding)
-    pub unk: Vec3BE,
+    pub _unk: Vec3BE,
     pub fov: u32,
-    pub unk2: [u32; 24],
+    pub _unk2: [u32; 24],
     pub rot: Vec3BE,
 }
 
@@ -128,7 +128,7 @@ impl GameCamera {
         let m_look_at = glm::look_at(&focus, &pos, &up);
 
         // Get the focus-pos axis
-        let direction =  m_look_at.fixed_rows::<glm::U1>(2).transpose().xyz();
+        let direction = m_look_at.fixed_rows::<glm::U1>(2).transpose().xyz();
 
         // Calculate the rotation from the focus-pos axis
         let m_new = glm::rotate_normalized_axis(&m_look_at, -rotation, &direction);

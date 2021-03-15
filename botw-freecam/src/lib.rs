@@ -107,7 +107,6 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     info!("Waiting for the game to start");
     let camera_offset = loop {
         let function_start = array[0x2C05484 / 4];
-        
 
         if dummy_pointer != function_start {
             info!("Pointer found");
@@ -116,14 +115,16 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
         std::thread::sleep(std::time::Duration::from_secs(1))
     };
 
-    let camera_bytes =
-            unsafe { std::slice::from_raw_parts((camera_offset) as *const u8, 10) };
+    let camera_bytes = unsafe { std::slice::from_raw_parts((camera_offset) as *const u8, 10) };
     if camera_bytes != original_bytes {
         return Err(format!(
             "Function signature doesn't match, This can mean two things:\n\n\
             * You're using a pre 2016 CPU (your cpu doesn't support `movbe`)\n\
             * You're not using the version described on the README.md\n\
-            {:x?} != {:x?}", camera_bytes, original_bytes).into());
+            {:x?} != {:x?}",
+            camera_bytes, original_bytes
+        )
+        .into());
     }
 
     let rotation_vec1 = array[0x2C085FC / 4] + 0x157;
@@ -175,7 +176,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
     let mut active = false;
 
     let mut points: Vec<CameraSnapshot> = vec![];
-    
+
     // This variable will hold the initial position when the freecamera is activated.
     let mut starting_point: Option<CameraSnapshot> = None;
 
@@ -273,8 +274,8 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 if distance > 400. {
                     let norm = glm::normalize(&(cp - p.pos));
 
-                    (*gc).pos = (p.pos + norm*380.).into();
-                    (*gc).focus = (p.pos + norm*380. + delta_view).into();
+                    (*gc).pos = (p.pos + norm * 380.).into();
+                    (*gc).focus = (p.pos + norm * 380. + delta_view).into();
                 }
             }
 
@@ -327,7 +328,9 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            if input.unlock_character { continue };
+            if input.unlock_character {
+                continue;
+            };
 
             (*gc).consume_input(&input);
             // println!("{:?}", *gc);
