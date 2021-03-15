@@ -202,9 +202,9 @@ pub fn handle_keyboard(input: &mut Input) {
     }
 
     if check_key_press(winuser::VK_TAB) {
-        input.delta_pos.0 *= 0.5;
-        input.delta_pos.1 *= 0.5;
-        input.delta_altitude *= 0.5;
+        input.delta_pos.0 *= 0.2;
+        input.delta_pos.1 *= 0.2;
+        input.delta_altitude *= 0.2;
     }
 
     input.delta_pos.0 *= input.speed_multiplier;
@@ -262,21 +262,16 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         input.delta_rotation = 0.;
     }
 
-    if gp.bLeftTrigger > 150 {
+    if (gp.wButtons & 0x1) != 0 {
         input.fov -= 0.01;
     }
 
-    if gp.bRightTrigger > 150 {
+    if (gp.wButtons & 0x2) != 0 {
         input.fov += 0.01;
     }
 
-    if gp.wButtons & 0x4000 != 0 {
-        input.delta_altitude = 0.02;
-    }
-
-    if gp.wButtons & 0x8000 != 0 {
-        input.delta_altitude = -0.02;
-    }
+    input.delta_altitude += -(gp.bLeftTrigger as f32) / 1e3;
+    input.delta_altitude += (gp.bRightTrigger as f32) / 1e3;
 
     macro_rules! dead_zone {
         ($val:expr) => {
@@ -305,9 +300,9 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
     }
 
     if gp.wButtons & 0x2000 != 0 {
-        input.delta_pos.0 *= 0.5;
-        input.delta_pos.1 *= 0.5;
-        input.delta_altitude *= 0.5;
+        input.delta_pos.0 *= 0.2;
+        input.delta_pos.1 *= 0.2;
+        input.delta_altitude *= 0.2;
     }
 }
 
