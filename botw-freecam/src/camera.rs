@@ -136,4 +136,18 @@ impl GameCamera {
         // Get the new up-vector
         m_new.fixed_rows::<glm::U1>(1).transpose().xyz()
     }
+
+    pub fn clamp_distance(&mut self, point: &glm::Vec3) {
+        let cp = glm::Vec3::from(self.pos);
+        let cf = glm::Vec3::from(self.focus);
+        let delta_view = cf - cp;
+        let distance = glm::l2_norm(&(point - cp));
+        if distance > 400. {
+            let norm = glm::normalize(&(cp - point));
+            let new_point: glm::Vec3 = *point + norm * 380.;
+
+            self.pos = new_point.into();
+            self.focus = Vec3BE::from(new_point + delta_view);
+        }
+    }
 }

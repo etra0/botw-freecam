@@ -71,7 +71,6 @@ pub struct Input {
 
     pub fov: f32,
 
-    // #[cfg(debug_assertions)]
     pub deattach: bool,
 
     pub speed_multiplier: f32,
@@ -237,11 +236,6 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
     if gp.bLeftTrigger > 150 && ((gp.wButtons & 0x2000) == 0x2000) {
         input.change_active = true;
     }
-
-    // #[cfg(debug_assertions)]
-    // if (gp.wButtons & (0x1000 | 0x4000)) == (0x1000 | 0x4000) {
-    //     input.deattach = true;
-    // }
 
     // Update the camera changes only if it's listening
     if !input.is_active {

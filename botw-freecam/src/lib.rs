@@ -3,7 +3,6 @@ use memory_rs::internal::{
     memory::{resolve_module_path, scan_aob},
     process_info::ProcessInfo,
 };
-use nalgebra_glm as glm;
 use std::ffi::CString;
 use winapi::um::consoleapi::AllocConsole;
 use winapi::um::libloaderapi::{FreeLibraryAndExitThread, GetModuleHandleA};
@@ -267,25 +266,11 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if let Some(ref p) = starting_point {
-                let cp = (*gc).pos.clone().into();
-                let cf: glm::Vec3 = (*gc).focus.clone().into();
-                let delta_view = cf - cp;
-                let distance = utils::calc_eucl_distance(&p.pos, &cp);
-                if distance > 400. {
-                    let norm = glm::normalize(&(cp - p.pos));
-
-                    (*gc).pos = (p.pos + norm * 380.).into();
-                    (*gc).focus = (p.pos + norm * 380. + delta_view).into();
-                }
+                (*gc).clamp_distance(&p.pos);
             }
 
-            // TODO: Maybe remove this
-            // if check_key_press(winuser::VK_F7) {
-            //     nops.last_mut().unwrap().remove_injection();
-            // }
-
             if !points.is_empty() {
-                let origin = (*gc).pos.clone().into();
+                let origin = (*gc).pos.into();
                 if utils::calc_eucl_distance(&origin, &points[0].pos) > 400. {
                     warn!("Sequence cleaned to prevent game crashing");
                     points.clear();
