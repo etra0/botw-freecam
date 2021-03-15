@@ -10,8 +10,8 @@ pub const INSTRUCTIONS: &str = "------------------------------
 USAGE:
 F2 / L2 + Circle / RT + B\t\tActivation
 WASD + Arrow keys / Sticks\t\tCamera movement
-Q - E / Square - Triangle / X - Y\tCamera's height
-F5 - F6 / R2 - L2 / RT - LT\t\tFov control
+Q - E / R2 - L2 / RT - LT\t\tCamera's height
+F5 - F6 / Up - Down\t\t\tFov control
 PgUp - PgDown / R1 - L1 / RB - LB\tRotation
 F3 - F4 / dpad left - dpad right\tChange movement speed
 Shift / X / A\t\t\t\tAccelerates temporarily
