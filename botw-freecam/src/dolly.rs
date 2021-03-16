@@ -9,6 +9,7 @@ pub struct CameraSnapshot {
     pub pos: glm::TVec3<f32>,
     pub focus: glm::TVec3<f32>,
     pub rot: glm::TVec3<f32>,
+    pub fov: f32,
 }
 
 pub trait Interpolate {
@@ -20,14 +21,21 @@ impl CameraSnapshot {
         let pos: glm::Vec3 = gc.pos.into();
         let focus: glm::Vec3 = gc.focus.into();
         let rot: glm::Vec3 = gc.rot.into();
+        let fov = gc.fov.to_fbe();
 
-        Self { pos, focus, rot }
+        Self {
+            pos,
+            focus,
+            rot,
+            fov,
+        }
     }
 
     pub fn set_inplace(&self, gc: &mut GameCamera) {
         gc.pos = self.pos.into();
         gc.focus = self.focus.into();
-        gc.rot = self.rot.into()
+        gc.rot = self.rot.into();
+        gc.fov = self.fov.to_u32();
     }
 }
 
@@ -83,34 +91,29 @@ impl Interpolate for Vec<CameraSnapshot> {
                 }
 
                 let p: i32 = (t / delta_t) as i32;
-                let p0 = bounds!(p - 1);
-                let p1 = bounds!(p);
-                let p2 = bounds!(p + 1);
-                let p3 = bounds!(p + 2);
+                let p0 = bounds!(p - 1) as usize;
+                let p1 = bounds!(p) as usize;
+                let p2 = bounds!(p + 1) as usize;
+                let p3 = bounds!(p + 2) as usize;
 
                 let rt = (t - delta_t * (p as f32)) / delta_t;
-                let pos = solve_eq(
-                    rt,
-                    self[p0 as usize].pos,
-                    self[p1 as usize].pos,
-                    self[p2 as usize].pos,
-                    self[p3 as usize].pos,
-                );
+
+                let fov = glm::lerp_scalar(self[p1].fov, self[p2].fov, glm::smoothstep(0., 1., rt));
+                let pos = solve_eq(rt, self[p0].pos, self[p1].pos, self[p2].pos, self[p3].pos);
                 let focus = solve_eq(
                     rt,
-                    self[p0 as usize].focus,
-                    self[p1 as usize].focus,
-                    self[p2 as usize].focus,
-                    self[p3 as usize].focus,
+                    self[p0].focus,
+                    self[p1].focus,
+                    self[p2].focus,
+                    self[p3].focus,
                 );
-                let rot = solve_eq(
-                    rt,
-                    self[p0 as usize].rot,
-                    self[p1 as usize].rot,
-                    self[p2 as usize].rot,
-                    self[p3 as usize].rot,
-                );
-                let vec = CameraSnapshot { pos, focus, rot };
+                let rot = solve_eq(rt, self[p0].rot, self[p1].rot, self[p2].rot, self[p3].rot);
+                let vec = CameraSnapshot {
+                    pos,
+                    focus,
+                    rot,
+                    fov,
+                };
                 vec.set_inplace(gc);
                 t += fraction;
                 std::thread::sleep(sleep_duration);
