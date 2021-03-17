@@ -27,7 +27,7 @@ F5 - F6 / Up - Down			Fov control
 PgUp - PgDown / R1 - L1 / RB - LB	Rotation
 F3 - F4 / dpad left - dpad right	Change movement speed
 Shift / X / A				Accelerates temporarily
-Tab / Circle / B			Accelerates temporarily
+Tab / Circle / B			Decelerate temporarily
 F7					Unlock the character (Locks the camera)
 ----- Sequence keys -----
 F8					Breaks a current sequence playing
