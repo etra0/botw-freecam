@@ -24,10 +24,10 @@ F2 / L2 + Circle / RT + B		Activation
 WASD + Arrow keys / Sticks		Camera movement
 Q - E / R2 - L2 / RT - LT		Camera's height
 F5 - F6 / Up - Down			Fov control
-PgUp - PgDown / R1 - L1 / RB - LB	Rotation
+PgUp - PgDown / R1 - L1 / RB - LB	Rotation (R1 + L1 resets the rotation)
 F3 - F4 / dpad left - dpad right	Change movement speed
 Shift / X / A				Accelerates temporarily
-Tab / Circle / B			Decelerate temporarily
+Tab / Square / X			Decelerate temporarily
 F7					Unlock the character (Locks the camera)
 ----- Sequence keys -----
 F8					Breaks a current sequence playing

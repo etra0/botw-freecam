@@ -270,8 +270,8 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         input.fov += 0.01;
     }
 
-    input.delta_altitude += -(gp.bLeftTrigger as f32) / 1e3;
-    input.delta_altitude += (gp.bRightTrigger as f32) / 1e3;
+    input.delta_altitude += -(gp.bLeftTrigger as f32) / 5e3;
+    input.delta_altitude += (gp.bRightTrigger as f32) / 5e3;
 
     macro_rules! dead_zone {
         ($val:expr) => {
@@ -299,7 +299,7 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
         input.delta_altitude *= 8.;
     }
 
-    if gp.wButtons & 0x2000 != 0 {
+    if gp.wButtons & 0x4000 != 0 {
         input.delta_pos.0 *= 0.2;
         input.delta_pos.1 *= 0.2;
         input.delta_altitude *= 0.2;
