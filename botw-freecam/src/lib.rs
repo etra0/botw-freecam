@@ -257,7 +257,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
             let gc = g_camera_struct as *mut GameCamera;
             if !active {
-                input.fov = (*gc).fov.to_fbe();
+                input.fov = (*gc).fov.into();
                 continue;
             }
 
