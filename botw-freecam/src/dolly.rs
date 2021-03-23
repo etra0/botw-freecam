@@ -21,7 +21,7 @@ impl CameraSnapshot {
         let pos: glm::Vec3 = gc.pos.into();
         let focus: glm::Vec3 = gc.focus.into();
         let rot: glm::Vec3 = gc.rot.into();
-        let fov = gc.fov.to_fbe();
+        let fov = f32::from(gc.fov);
 
         Self {
             pos,
@@ -35,7 +35,7 @@ impl CameraSnapshot {
         gc.pos = self.pos.into();
         gc.focus = self.focus.into();
         gc.rot = self.rot.into();
-        gc.fov = self.fov.to_u32();
+        gc.fov = self.fov.into();
     }
 }
 

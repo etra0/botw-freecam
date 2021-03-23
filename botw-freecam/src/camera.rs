@@ -2,18 +2,21 @@ use crate::utils::*;
 use nalgebra_glm as glm;
 
 #[derive(Clone, Copy)]
-pub struct Vec3BE(pub [u32; 3]);
+pub struct Vec3BE(pub [FloatBE; 3]);
+
+#[derive(Clone, Copy)]
+pub struct FloatBE(u32);
 
 impl From<Vec3BE> for glm::TVec3<f32> {
     fn from(v: Vec3BE) -> Self {
         let v = v.0;
-        glm::vec3(v[0].to_fbe(), v[1].to_fbe(), v[2].to_fbe())
+        glm::vec3(v[0].into(), v[1].into(), v[2].into())
     }
 }
 
 impl From<glm::TVec3<f32>> for Vec3BE {
     fn from(v: glm::TVec3<f32>) -> Self {
-        Vec3BE([v[0].to_u32(), v[1].to_u32(), v[2].to_u32()])
+        Vec3BE([v[0].into(), v[1].into(), v[2].into()])
     }
 }
 
@@ -23,7 +26,7 @@ pub struct GameCamera {
     pub focus: Vec3BE,
     // Unknown values (padding)
     pub _unk: Vec3BE,
-    pub fov: u32,
+    pub fov: FloatBE,
     pub _unk2: [u32; 24],
     pub rot: Vec3BE,
 }
@@ -38,36 +41,29 @@ impl std::fmt::Debug for GameCamera {
             .field("self", &format_args!("{:x}", ptr))
             .field("pos", &pos)
             .field("focus", &focus)
-            .field("fov", &(self.fov.to_fbe()))
+            .field("fov", &(f32::from(self.fov)))
             .finish()
     }
 }
 
-pub trait FromU32BigEndianToFloat {
-    fn to_fbe(&self) -> f32;
-}
-pub trait FromF32ToU32BigEndian {
-    fn to_u32(&self) -> u32;
-}
-
-impl FromU32BigEndianToFloat for u32 {
-    fn to_fbe(&self) -> f32 {
-        f32::from_bits(u32::from_be(*self))
+impl From<f32> for FloatBE {
+    fn from(val: f32) -> Self {
+        FloatBE(val.to_bits().to_be())
     }
 }
 
-impl FromF32ToU32BigEndian for f32 {
-    fn to_u32(&self) -> u32 {
-        let val: u32 = (*self).to_bits();
-        val.to_be()
+impl From<FloatBE> for f32 {
+    fn from(val: FloatBE) -> f32 {
+        f32::from_bits(u32::from_be(val.0))
     }
 }
+
 
 impl GameCamera {
     pub fn consume_input(&mut self, input: &Input) {
-        let r_cam_x = self.focus.0[0].to_fbe() - self.pos.0[0].to_fbe();
-        let r_cam_y = self.focus.0[1].to_fbe() - self.pos.0[1].to_fbe();
-        let r_cam_z = self.focus.0[2].to_fbe() - self.pos.0[2].to_fbe();
+        let r_cam_x = f32::from(self.focus.0[0]) - f32::from(self.pos.0[0]);
+        let r_cam_y = f32::from(self.focus.0[1]) - f32::from(self.pos.0[1]);
+        let r_cam_z = f32::from(self.focus.0[2]) - f32::from(self.pos.0[2]);
 
         let (r_cam_x, r_cam_z, r_cam_y) = GameCamera::calc_new_focus_point(
             r_cam_x,
@@ -78,26 +74,26 @@ impl GameCamera {
         );
 
         self.pos.0[0] =
-            (self.pos.0[0].to_fbe() + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z)
-                .to_u32();
+            (f32::from(self.pos.0[0]) + r_cam_x * input.delta_pos.1 + input.delta_pos.0 * r_cam_z)
+                .into();
 
         self.pos.0[1] =
-            (self.pos.0[1].to_fbe() + r_cam_y * input.delta_pos.1 + input.delta_altitude).to_u32();
+            (f32::from(self.pos.0[1]) + r_cam_y * input.delta_pos.1 + input.delta_altitude).into();
 
-        self.pos.0[2] = (self.pos.0[2].to_fbe() + r_cam_z * input.delta_pos.1
+        self.pos.0[2] = (f32::from(self.pos.0[2]) + r_cam_z * input.delta_pos.1
             - input.delta_pos.0 * r_cam_x)
-            .to_u32();
+            .into();
 
-        self.focus.0[0] = (self.pos.0[0].to_fbe() + r_cam_x).to_u32();
-        self.focus.0[1] = (self.pos.0[1].to_fbe() + r_cam_y).to_u32();
-        self.focus.0[2] = (self.pos.0[2].to_fbe() + r_cam_z).to_u32();
+        self.focus.0[0] = (f32::from(self.pos.0[0]) + r_cam_x).into();
+        self.focus.0[1] = (f32::from(self.pos.0[1]) + r_cam_y).into();
+        self.focus.0[2] = (f32::from(self.pos.0[2]) + r_cam_z).into();
 
         let pos_ = glm::Vec3::from(self.pos);
         let focus_ = glm::Vec3::from(self.focus);
         let result = GameCamera::calculate_rotation(focus_, pos_, input.delta_rotation);
         self.rot = result.into();
 
-        self.fov = input.fov.to_u32();
+        self.fov = input.fov.into();
     }
 
     pub fn calc_new_focus_point(
