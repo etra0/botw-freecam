@@ -24,11 +24,8 @@ impl From<glm::TVec3<f32>> for Vec3BE {
 pub struct GameCamera {
     pub pos: Vec3BE,
     pub focus: Vec3BE,
-    // Unknown values (padding)
-    pub _unk: Vec3BE,
-    pub fov: FloatBE,
-    pub _unk2: [u32; 24],
     pub rot: Vec3BE,
+    pub fov: FloatBE,
 }
 
 impl std::fmt::Debug for GameCamera {

@@ -9,7 +9,8 @@ asm_get_camera_data PROC
 
     ; Steal the camera pointer
     push rbx
-    lea rbx, [r13 + rax + 5c0h]
+    lea rbx, [r13 + rdx + 654h]
+    sub rbx, 24h
     mov [g_camera_struct], rbx
     pop rbx
 
@@ -18,7 +19,7 @@ asm_get_camera_data PROC
     jmp ending
 
     original:
-    movbe [r13 + rax + 5c4h], r14d
+    movbe [r13 + rdx + 654h], r14d
     cvtss2sd xmm0, xmm0
 
     ending:
