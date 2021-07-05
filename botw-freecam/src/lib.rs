@@ -72,7 +72,6 @@ unsafe extern "system" fn wrapper(lib: LPVOID) -> u32 {
 struct CameraOffsets {
     camera: usize,
     rotation_vec1: usize,
-    rotation_vec2: usize,
 }
 
 fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
@@ -96,7 +95,7 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
 
     let array = unsafe { std::slice::from_raw_parts(addr as *const usize, 0x8800000 / 0x8) };
     let original_bytes = [
-        0x45_u8, 0x0F, 0x38, 0xF1, 0xB4, 0x05, 0xC4, 0x05, 0x00, 0x00,
+        0x45_u8, 0x0F, 0x38, 0xF1, 0xB4, 0x15, 0x54, 0x06, 0x00, 0x00,
     ];
 
     // As Exzap said, "It will only compile it once its executed. Before that the table points to a placeholder function"
@@ -105,11 +104,11 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     let dummy_pointer = array[0];
     info!("Waiting for the game to start");
     let camera_offset = loop {
-        let function_start = array[0x2C05484 / 4];
+        let function_start = array[0x2C085FC / 4];
 
         if dummy_pointer != function_start {
             info!("Pointer found");
-            break function_start + 0x6C;
+            break function_start + 0x7E;
         }
         std::thread::sleep(std::time::Duration::from_secs(1))
     };
@@ -126,13 +125,11 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
         .into());
     }
 
-    let rotation_vec1 = array[0x2C085FC / 4] + 0x157;
-    let rotation_vec2 = array[0x2e57fdc / 4] + 0x7f;
+    let rotation_vec1 = array[0x2e57fdc / 4] + 0x57;
 
     Ok(CameraOffsets {
         camera: camera_offset,
         rotation_vec1,
-        rotation_vec2,
     })
 }
 
@@ -197,20 +194,21 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut nops = vec![
         // Camera pos and focus writers
-        Injection::new(camera_struct.camera + 0x1C8, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x4C, vec![0x90; 10]),
         Injection::new(camera_struct.camera + 0x17, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x98, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x1DF, vec![0x90; 10]),
-        // Fov
-        Injection::new(camera_struct.camera + 0xAF, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x55, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0xC2, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0xD9, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x117, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x12E, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x15D, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x174, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10]),
+        Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10]),
+
         // Rotation
-        Injection::new(camera_struct.rotation_vec1, vec![0x90; 10]),
-        Injection::new(camera_struct.rotation_vec1 + 0x3E, vec![0x90; 10]),
-        Injection::new(camera_struct.rotation_vec1 + 0x9B, vec![0x90; 10]),
-        Injection::new(camera_struct.rotation_vec2, vec![0x90; 7]),
-        Injection::new(camera_struct.rotation_vec2 - 0x14, vec![0x90; 7]),
-        Injection::new(camera_struct.rotation_vec2 - 0x28, vec![0x90; 7]),
+        Injection::new(camera_struct.rotation_vec1, vec![0x90; 7]),
+        Injection::new(camera_struct.rotation_vec1 + 0x14, vec![0x90; 7]),
+        Injection::new(camera_struct.rotation_vec1 + 0x28, vec![0x90; 7]),
         block_xinput(&proc_inf)?,
     ];
 
@@ -266,7 +264,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if let Some(ref p) = starting_point {
-                (*gc).clamp_distance(&p.pos);
+                // (*gc).clamp_distance(&p.pos);
             }
 
             if !points.is_empty() {
