@@ -48,6 +48,20 @@ fn solve_eq(t: f32, p0: glm::Vec3, p1: glm::Vec3, p2: glm::Vec3, p3: glm::Vec3) 
     p0 * b0 + p1 * b1 + p2 * b2 + p3 * b3
 }
 
+
+/// We create our own sleep since we need a more precise way of sleeping the process. The way we'll
+/// do that is to sleep 1 ms always and then check if enough time has passed. It's like a
+/// combination between busy waiting and sleeping entirely.
+fn sleep(dur: Duration) {
+    let starting_point = std::time::Instant::now();
+    loop {
+        if starting_point.elapsed() >= dur {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
 impl Interpolate for Vec<CameraSnapshot> {
     fn interpolate(&self, gc: &mut GameCamera, duration: Duration, loop_it: bool) {
         let sleep_duration = Duration::from_millis(10);
@@ -116,7 +130,7 @@ impl Interpolate for Vec<CameraSnapshot> {
                 };
                 vec.set_inplace(gc);
                 t += fraction;
-                std::thread::sleep(sleep_duration);
+                sleep(sleep_duration);
             }
 
             if !loop_it {
