@@ -105,7 +105,7 @@ impl GameCamera {
 
         let phi = (cam_x.powi(2) + cam_z.powi(2)).sqrt().atan2(cam_y) + speed_y;
 
-        let r = (cam_x.powi(2) + cam_y.powi(2) + cam_z.powi(2)).sqrt();
+        let r = 5.;
 
         let r_cam_x = r * theta.cos() * phi.sin();
         let r_cam_z = r * theta.sin() * phi.sin();
