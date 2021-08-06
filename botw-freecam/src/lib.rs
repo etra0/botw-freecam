@@ -237,10 +237,12 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             info!("Camera is {}", active);
 
             if active {
+                input.reset();
                 nops.inject();
             } else {
                 nops.remove_injection();
                 starting_point = None;
+                input.unlock_character = false;
             }
 
             input.change_active = false;
@@ -256,15 +258,12 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             let gc = g_camera_struct as *mut GameCamera;
             if !active {
                 input.fov = (*gc).fov.into();
+                input.delta_rotation = 0.;
                 continue;
             }
 
             if starting_point.is_none() {
                 starting_point = Some(CameraSnapshot::new(&(*gc)));
-            }
-
-            if let Some(ref p) = starting_point {
-                // (*gc).clamp_distance(&p.pos);
             }
 
             if !points.is_empty() {
@@ -311,37 +310,15 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            if input.unlock_character {
-                continue;
+            if !input.unlock_character {
+                (*gc).consume_input(&input);
             };
-
-            (*gc).consume_input(&input);
-            // println!("{:?}", *gc);
         }
 
         input.reset();
 
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-
-    // base camera: 0x44E581F0
-    // base camera 2: 0x44E58260
-    // distance 1: 0xd3690e8
-    // camera writer
-    // code: 0x30A66C4
-    // 0x2c054fc (+0xc054fc)
-    // offset to function start: 0x120
-    // offset in RPX: 0x02aed470
-    // Possible offset: 2E0
-
-    // up vector 1:
-    // 0x02c08648
-
-    // up vector 2:
-    // 0x02e57ff4
-
-    // Block input:
-    // Cemu.exe + 0x3c63e1
 
     Ok(())
 }
