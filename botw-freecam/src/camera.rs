@@ -28,6 +28,9 @@ pub struct GameCamera {
     pub fov: FloatBE,
 }
 
+#[repr(C)]
+pub struct PlayerPosition(pub Vec3BE);
+
 impl std::fmt::Debug for GameCamera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ptr = self as *const GameCamera as usize;
@@ -57,7 +60,7 @@ impl From<FloatBE> for f32 {
 
 
 impl GameCamera {
-    pub fn consume_input(&mut self, input: &Input) {
+    pub fn consume_input(&mut self, input: &Input, player_position: Option<&mut PlayerPosition>) {
         let r_cam_x = f32::from(self.focus.0[0]) - f32::from(self.pos.0[0]);
         let r_cam_y = f32::from(self.focus.0[1]) - f32::from(self.pos.0[1]);
         let r_cam_z = f32::from(self.focus.0[2]) - f32::from(self.pos.0[2]);
@@ -84,6 +87,10 @@ impl GameCamera {
         self.focus.0[0] = (f32::from(self.pos.0[0]) + r_cam_x).into();
         self.focus.0[1] = (f32::from(self.pos.0[1]) + r_cam_y).into();
         self.focus.0[2] = (f32::from(self.pos.0[2]) + r_cam_z).into();
+
+        if let Some(pp) = player_position {
+            pp.0 = self.focus;
+        }
 
         let pos_ = glm::Vec3::from(self.pos);
         let focus_ = glm::Vec3::from(self.focus);

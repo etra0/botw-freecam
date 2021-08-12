@@ -43,7 +43,7 @@ pub fn get_version() -> String {
 #[rustfmt::skip]
 #[allow(dead_code)]
 pub enum Keys {
-    A = 0x41, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    A = 0x41_i32, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
 }
 
 pub fn check_key_press(key: i32) -> bool {
@@ -79,6 +79,7 @@ pub struct Input {
     pub dolly_increment: f32,
 
     pub unlock_character: bool,
+    pub clip_link: bool,
 }
 
 impl Input {

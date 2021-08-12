@@ -3,7 +3,6 @@ use memory_rs::internal::{
     memory::{resolve_module_path, scan_aob},
     process_info::ProcessInfo,
 };
-use std::ffi::CString;
 use winapi::um::consoleapi::AllocConsole;
 use winapi::um::libloaderapi::{FreeLibraryAndExitThread, GetModuleHandleA};
 use winapi::um::wincon::FreeConsole;
@@ -26,6 +25,8 @@ use utils::{check_key_press, dummy_xinput, error_message, handle_keyboard, Input
 
 use std::io::{self, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
+use crate::utils::calc_eucl_distance;
 
 fn write_red(msg: &str) -> io::Result<()> {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
@@ -69,20 +70,31 @@ unsafe extern "system" fn wrapper(lib: LPVOID) -> u32 {
 }
 
 #[derive(Debug)]
-struct CameraOffsets {
+struct MainGameInfo {
     camera: usize,
     rotation_vec1: usize,
+    player_position: usize,
 }
 
-fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
-    let function_name = CString::new("PPCRecompiler_getJumpTableBase").unwrap();
+/// Returns an extern function from a name.
+/// # Safety
+/// This function is highly unsafe to allow its transmutability. It assumes caller responsability
+/// if the types are correct or not.
+fn get_extern_function<T>(name: &str) -> Result<T, Box<dyn std::error::Error>> {
+    let func_name = format!("{}\x00", name);
     let proc_handle = unsafe { GetModuleHandleA(std::ptr::null_mut()) };
-    let func = unsafe { GetProcAddress(proc_handle, function_name.as_ptr()) };
+    let func: usize = unsafe { GetProcAddress(proc_handle, func_name.as_ptr() as _) } as _;
 
-    if (func as usize) == 0x0 {
-        return Err("Func returned was empty".into());
+    if func == 0x00 { 
+        return Err(format!("GetProcHandle couldn't find the function {}", name).into());
     }
-    let func: extern "C" fn() -> usize = unsafe { std::mem::transmute(func) };
+
+    return Ok(unsafe { std::mem::transmute_copy(&func) });
+}
+
+type ExternFunction = extern "C" fn() -> usize;
+fn get_main_game_info() -> Result<MainGameInfo, Box<dyn std::error::Error>> {
+    let func: ExternFunction = get_extern_function("PPCRecompiler_getJumpTableBase")?;
 
     let addr = (func)();
 
@@ -126,10 +138,15 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     }
 
     let rotation_vec1 = array[0x2e57fdc / 4] + 0x57;
+    // Now we get the player position which we assume it's on this specific offset.
+    let player_position_offset: usize = 0x113444F0;
+    let get_base_addr_func: ExternFunction = get_extern_function("memory_getBase")?;
+    let player_position = (get_base_addr_func)() + player_position_offset + 0x50;
 
-    Ok(CameraOffsets {
+    Ok(MainGameInfo {
         camera: camera_offset,
         rotation_vec1,
+        player_position
     })
 }
 
@@ -176,9 +193,9 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
     // This variable will hold the initial position when the freecamera is activated.
     let mut starting_point: Option<CameraSnapshot> = None;
 
-    let camera_struct = get_camera_function()?;
-    info!("{:x?}", camera_struct);
-    let camera_pointer = camera_struct.camera;
+    let main_game_info = get_main_game_info()?;
+    info!("{:x?}", main_game_info);
+    let camera_pointer = main_game_info.camera;
     info!("Camera function camera_pointer: {:x}", camera_pointer);
 
     block_xinput(&proc_inf)?;
@@ -194,21 +211,21 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut nops = vec![
         // Camera pos and focus writers
-        Injection::new(camera_struct.camera + 0x17, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x55, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0xC2, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0xD9, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x117, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x12E, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x15D, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x174, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x17, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x55, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0xC2, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0xD9, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x117, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x12E, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x15D, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x174, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x22A, vec![0x90; 10]),
+        Injection::new(main_game_info.camera + 0x22A, vec![0x90; 10]),
 
         // Rotation
-        Injection::new(camera_struct.rotation_vec1, vec![0x90; 7]),
-        Injection::new(camera_struct.rotation_vec1 + 0x14, vec![0x90; 7]),
-        Injection::new(camera_struct.rotation_vec1 + 0x28, vec![0x90; 7]),
+        Injection::new(main_game_info.rotation_vec1, vec![0x90; 7]),
+        Injection::new(main_game_info.rotation_vec1 + 0x14, vec![0x90; 7]),
+        Injection::new(main_game_info.rotation_vec1 + 0x28, vec![0x90; 7]),
         block_xinput(&proc_inf)?,
     ];
 
@@ -256,15 +273,29 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let gc = g_camera_struct as *mut GameCamera;
+            let player_position = main_game_info.player_position as *mut PlayerPosition;
+
             if !active {
                 input.fov = (*gc).fov.into();
                 input.delta_rotation = 0.;
                 continue;
             }
 
-            if starting_point.is_none() {
-                starting_point = Some(CameraSnapshot::new(&(*gc)));
-            }
+            // If we have a starting point and link is attached, we don't need to clamp the
+            // distance, but we need to update the starting_point.
+            // If link is not clipped, to avoid softlock we clamp the distance to 400 units.
+            // If we don't have starting_point, we need to assign one ASAP.
+            match (&starting_point, input.clip_link) {
+                (Some(_), true) => {
+                    starting_point = Some(CameraSnapshot::new(&(*gc)));
+                },
+                (Some(ref sp), false) => {
+                    (*gc).clamp_distance(&sp.pos.into());
+                }
+                (None, _) => {
+                    starting_point = Some(CameraSnapshot::new(&(*gc)));
+                }
+            };
 
             if !points.is_empty() {
                 let origin = (*gc).pos.into();
@@ -310,8 +341,19 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
+            if check_key_press(Keys::K as _)  {
+                input.clip_link = !input.clip_link;
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
             if !input.unlock_character {
-                (*gc).consume_input(&input);
+                let pp = if input.clip_link {
+                    Some(&mut *player_position)
+                } else {
+                    None
+                };
+
+                (*gc).consume_input(&input, pp);
             };
         }
 
