@@ -9,16 +9,16 @@ const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
 pub const INSTRUCTIONS: &str = "------------------------------
 USAGE:
 ------------------------------------
-Keyboard\tDS4\tXBox\tWiiU Controller
-F2\tL2 + Circle\tRT + B\tZL + B\t\tActivation
-WASD + Arrow keys\tSticks\tSticks\tSticks\t\tCamera movement
-Q - E\tR2 - L2\tRT - LT\tZL - ZR\t\tCamera's height
-F5 - F6\tUp - Down\tUp - Down\tUp - Down\t\t\tFov control
-PgUp - PgDown\tR1 - L1\tRB - LB\tL - R\tRotation
-F3 - F4\tLeft - Right\tLeft - Right\tLeft - Right\tChange movement speed
-Shift\tX\tA\tA\t\t\t\tAccelerates temporarily
-Tab\tCircle\tB\tX\t\t\tDecelerate temporarily
-F7\tNONE\tNONE\tNONE\t\t\t\t\tUnlock the character (Locks the camera)
+Keyboard\t\tDS4\t\tXBox\t\tWiiU Controller
+F2\t\tL2 + Circle\t\tRT + B\t\tZL + B\t\tActivation
+WASD + Arrow keys\t\tSticks\t\tSticks\t\tSticks\t\tCamera movement
+Q - E\t\tR2 - L2\t\tRT - LT\t\tZL - ZR\t\tCamera's height
+F5 - F6\t\tUp - Down\t\tUp - Down\t\tUp - Down\t\t\tFov control
+PgUp - PgDown\t\tR1 - L1\t\tRB - LB\t\tL - R\tRotation
+F3 - F4\t\tLeft - Right\t\tLeft - Right\t\tLeft - Right\tChange movement speed
+Shift\t\tX\t\tA\t\tA\t\t\t\tAccelerates temporarily
+Tab\t\tCircle\t\tB\t\tX\t\t\tDecelerate temporarily
+F7\t\tNONE\t\tNONE\t\tNONE\t\t\t\t\tUnlock the character (Locks the camera)
 ------------------------------------
 ----- Sequence keys -----
 F8\t\t\t\t\tBreaks a current sequence playing
