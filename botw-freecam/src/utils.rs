@@ -8,15 +8,18 @@ const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
 
 pub const INSTRUCTIONS: &str = "------------------------------
 USAGE:
-F2 / L2 + Circle / RT + B\t\tActivation
-WASD + Arrow keys / Sticks\t\tCamera movement
-Q - E / R2 - L2 / RT - LT\t\tCamera's height
-F5 - F6 / Up - Down\t\t\tFov control
-PgUp - PgDown / R1 - L1 / RB - LB\tRotation
-F3 - F4 / dpad left - dpad right\tChange movement speed
-Shift / X / A\t\t\t\tAccelerates temporarily
-Tab / Circle / B\t\t\tDecelerate temporarily
-F7\t\t\t\t\tUnlock the character (Locks the camera)
+------------------------------------
+Keyboard\tDS4\tXBox\tWiiU Controller
+F2\tL2 + Circle\tRT + B\tZL + B\t\tActivation
+WASD + Arrow keys\tSticks\tSticks\tSticks\t\tCamera movement
+Q - E\tR2 - L2\tRT - LT\tZL - ZR\t\tCamera's height
+F5 - F6\tUp - Down\tUp - Down\tUp - Down\t\t\tFov control
+PgUp - PgDown\tR1 - L1\tRB - LB\tL - R\tRotation
+F3 - F4\tLeft - Right\tLeft - Right\tLeft - Right\tChange movement speed
+Shift\tX\tA\tA\t\t\t\tAccelerates temporarily
+Tab\tCircle\tB\tX\t\t\tDecelerate temporarily
+F7\tNONE\tNONE\tNONE\t\t\t\t\tUnlock the character (Locks the camera)
+------------------------------------
 ----- Sequence keys -----
 F8\t\t\t\t\tBreaks a current sequence playing
 F9\t\t\t\t\tAdd a point to the sequence
