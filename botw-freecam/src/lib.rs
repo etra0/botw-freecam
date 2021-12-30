@@ -1,6 +1,6 @@
 use memory_rs::internal::{
     injections::{Detour, Inject, Injection},
-    memory::{resolve_module_path, scan_aob},
+    memory::resolve_module_path,
     process_info::ProcessInfo,
 };
 use std::ffi::CString;
@@ -117,6 +117,8 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     if camera_bytes != original_bytes {
         return Err(format!(
             "Function signature doesn't match, This can mean two things:\n\n\
+            * You're using a cheat that requires a 'master cheat' to be activated (which\
+              effectively removes `movbe`)
             * You're using a pre 2016 CPU (your cpu doesn't support `movbe`)\n\
             * You're not using the version described on the README.md\n\
             {:x?} != {:x?}",
@@ -135,24 +137,19 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
 
 fn block_xinput(proc_inf: &ProcessInfo) -> Result<Injection, Box<dyn std::error::Error>> {
     // Find input blocker for xinput only
-    let pat = memory_rs::generate_aob_pattern![
+
+    let function_addr = proc_inf.region.scan_aob(&memory_rs::generate_aob_pattern![
         0x41, 0xFF, 0xD0, 0x85, 0xC0, 0x74, 0x16, 0x33, 0xC9, 0xC6, 0x87, 0x58, 0x01, 0x00, 0x00,
         0x00, 0x8B, 0xC1, 0x87, 0x47, 0x14, 0x86, 0x4F, 0x18
-    ];
-
-    let function_addr = scan_aob(
-        proc_inf.region.start_address,
-        proc_inf.region.size,
-        pat.1,
-        pat.0,
-    )?
+    ])?
     .ok_or("XInput blocker couldn't be found")?;
 
-    let rip = function_addr - 10;
-    let offset = unsafe { *((rip + 3) as *const u32) as usize + rip + 7 };
+    let rip = (function_addr - 10) as *const u8;
+    let jmp_offset = unsafe { rip.offset(3).cast::<u32>().read() as isize };
+    let final_function_ptr = unsafe { rip.offset(jmp_offset + 7) as usize };
 
-    let my_function: [u8; 8] = unsafe { std::mem::transmute(dummy_xinput as *const u8 as usize) };
-    let injection = Injection::new(offset, Vec::from(my_function));
+    let my_function = (dummy_xinput as usize).to_ne_bytes();
+    let injection = Injection::new(final_function_ptr, Vec::from(my_function));
 
     Ok(injection)
 }
@@ -238,9 +235,9 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
             if active {
                 input.reset();
-                nops.inject();
+                nops.iter_mut().inject();
             } else {
-                nops.remove_injection();
+                nops.iter_mut().remove_injection();
                 starting_point = None;
                 input.unlock_character = false;
             }
@@ -255,19 +252,19 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
-            let gc = g_camera_struct as *mut GameCamera;
+            let gc = (g_camera_struct as *mut GameCamera).as_mut().ok_or("GameCamera was still null")?;
             if !active {
-                input.fov = (*gc).fov.into();
+                input.fov = gc.fov.into();
                 input.delta_rotation = 0.;
                 continue;
             }
 
             if starting_point.is_none() {
-                starting_point = Some(CameraSnapshot::new(&(*gc)));
+                starting_point = Some(CameraSnapshot::new(gc));
             }
 
             if !points.is_empty() {
-                let origin = (*gc).pos.into();
+                let origin = gc.pos.into();
                 if utils::calc_eucl_distance(&origin, &points[0].pos) > 400. {
                     warn!("Sequence cleaned to prevent game crashing");
                     points.clear();
@@ -275,7 +272,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if check_key_press(winuser::VK_F9) {
-                let cs = CameraSnapshot::new(&(*gc));
+                let cs = CameraSnapshot::new(gc);
                 info!("Point added to interpolation: {:?}", cs);
                 points.push(cs);
                 std::thread::sleep(std::time::Duration::from_millis(400));
@@ -289,13 +286,13 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
             if check_key_press(winuser::VK_F10) & (points.len() > 1) {
                 let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
-                points.interpolate(&mut (*gc), dur, false);
+                points.interpolate(gc, dur, false);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
             if check_key_press(Keys::L as _) & (points.len() > 1) {
                 let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
-                points.interpolate(&mut (*gc), dur, true);
+                points.interpolate(gc, dur, true);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
@@ -311,7 +308,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if !input.unlock_character {
-                (*gc).consume_input(&input);
+                gc.consume_input(&input);
             };
         }
 
