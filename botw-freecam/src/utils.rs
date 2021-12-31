@@ -306,6 +306,7 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
     }
 }
 
+#[no_mangle]
 pub unsafe extern "system" fn dummy_xinput(a: u32, b: &mut xinput::XINPUT_STATE) -> u32 {
     if g_camera_active != 0 {
         *b = std::mem::zeroed();

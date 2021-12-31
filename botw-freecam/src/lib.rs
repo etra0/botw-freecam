@@ -22,7 +22,7 @@ mod utils;
 use camera::*;
 use dolly::*;
 use globals::*;
-use utils::{check_key_press, dummy_xinput, error_message, handle_keyboard, Input, Keys};
+use utils::{check_key_press, error_message, handle_keyboard, Input, Keys};
 
 use std::io::{self, Write};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -135,21 +135,20 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     })
 }
 
-fn block_xinput(proc_inf: &ProcessInfo) -> Result<Injection, Box<dyn std::error::Error>> {
+fn block_xinput(proc_inf: &ProcessInfo) -> Result<Detour, Box<dyn std::error::Error>> {
     // Find input blocker for xinput only
 
     let function_addr = proc_inf.region.scan_aob(&memory_rs::generate_aob_pattern![
-        0x41, 0xFF, 0xD0, 0x85, 0xC0, 0x74, 0x16, 0x33, 0xC9, 0xC6, 0x87, 0x58, 0x01, 0x00, 0x00,
-        0x00, 0x8B, 0xC1, 0x87, 0x47, 0x14, 0x86, 0x4F, 0x18
+        0x48, 0x8B, 0x40, 0x28, 0x48, 0x8D, 0x55, 0xE7, 0x8B, 0x8F, 0x50, 0x01, 0x00, 0x00
     ])?
     .ok_or("XInput blocker couldn't be found")?;
 
-    let rip = (function_addr - 10) as *const u8;
-    let jmp_offset = unsafe { rip.offset(3).cast::<u32>().read() as isize };
-    let final_function_ptr = unsafe { rip.offset(jmp_offset + 7) as usize };
+    // HACK: read interceptor.asm
+    let injection = unsafe {
+        Detour::new(function_addr, 14, &asm_override_xinput_call as *const _ as usize, Some(&mut g_xinput_override))
+    };
 
-    let my_function = (dummy_xinput as usize).to_ne_bytes();
-    let injection = Injection::new(final_function_ptr, Vec::from(my_function));
+    println!("{:x?}", unsafe { &asm_override_xinput_call as *const _ as usize });
 
     Ok(injection)
 }
@@ -189,24 +188,24 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         )
     };
 
-    let mut nops = vec![
+    let mut nops: Vec<Box<dyn Inject>> = vec![
         // Camera pos and focus writers
-        Injection::new(camera_struct.camera + 0x17, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x55, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0xC2, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0xD9, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x117, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x12E, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x15D, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x174, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10]),
-        Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10]),
+        Box::new(Injection::new(camera_struct.camera + 0x17, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0x55, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0xC2, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0xD9, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0x117, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0x12E, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0x15D, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0x174, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10])),
+        Box::new(Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10])),
 
         // Rotation
-        Injection::new(camera_struct.rotation_vec1, vec![0x90; 7]),
-        Injection::new(camera_struct.rotation_vec1 + 0x14, vec![0x90; 7]),
-        Injection::new(camera_struct.rotation_vec1 + 0x28, vec![0x90; 7]),
-        block_xinput(&proc_inf)?,
+        Box::new(Injection::new(camera_struct.rotation_vec1, vec![0x90; 7])),
+        Box::new(Injection::new(camera_struct.rotation_vec1 + 0x14, vec![0x90; 7])),
+        Box::new(Injection::new(camera_struct.rotation_vec1 + 0x28, vec![0x90; 7])),
+        Box::new(block_xinput(&proc_inf)?),
     ];
 
     cam.inject();
