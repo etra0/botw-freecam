@@ -3,7 +3,7 @@ use memory_rs::internal::{
     memory::resolve_module_path,
     process_info::ProcessInfo,
 };
-use std::ffi::{c_void, CString};
+use std::ffi::{c_void};
 use windows_sys::Win32::{
     System::{
         Console::{AllocConsole, FreeConsole},
@@ -14,6 +14,7 @@ use windows_sys::Win32::{
         XboxController::{XInputGetState, XINPUT_STATE},
     },
 };
+use std::{ffi::CString, sync::{Arc, atomic::{AtomicBool, Ordering}}};
 
 use log::*;
 use simplelog::*;
@@ -22,6 +23,8 @@ mod camera;
 mod dolly;
 mod globals;
 mod utils;
+
+mod blender;
 
 use camera::*;
 use dolly::*;
@@ -192,6 +195,18 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
 
     block_xinput(&proc_inf)?;
 
+    // Blender Stuff ---
+    let (tx, rx) = flume::bounded::<blender::PackedCameraData>(60);
+    let blender_receiver = blender::BlenderReceiver { receiver: rx, should_run: Arc::new(AtomicBool::new(false)) };
+
+    let __should_run = blender_receiver.should_run.clone();
+    let blender_sender_thread = std::thread::spawn(|| {
+        let mut blender_server = blender::BlenderServer::new(tx, __should_run);
+        blender_server.start_listening();
+    });
+
+    // Blender Stuff --
+
     let mut cam = unsafe {
         Detour::new(
             camera_pointer,
@@ -325,15 +340,34 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            if !input.unlock_character {
-                gc.consume_input(&input);
-            };
+            // if !input.unlock_character {
+            //     gc.consume_input(&input);
+            // };
+
+            match blender_receiver.receiver.try_recv() {
+                Ok(pcd) => {
+                    if starting_point.is_some() {
+                        let current_point = starting_point.clone().unwrap();
+                        let camera_snapshot = CameraSnapshot::from((pcd, &current_point));
+                        camera_snapshot.set_inplace(gc);
+                    }
+                },
+                Err(flume::TryRecvError::Empty) => (),
+                Err(flume::TryRecvError::Disconnected) => {
+                    error!("Channel disconected, ending loop");
+                    break;
+                }
+            }
         }
+
 
         input.reset();
 
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
+
+    blender_receiver.should_run.store(false, Ordering::Relaxed);
+    blender_sender_thread.join().unwrap();
 
     Ok(())
 }

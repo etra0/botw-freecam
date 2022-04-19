@@ -19,6 +19,7 @@ windows-sys = {version = "0.35", features = [
   "Win32_UI_Input_XboxController",
   "Win32_System_Console",
 ]}
+flume = "0.10"
 
 [build-dependencies]
 cc = "1.0"

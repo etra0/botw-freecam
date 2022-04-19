@@ -12,6 +12,23 @@ pub struct CameraSnapshot {
     pub fov: f32,
 }
 
+// TODO: Clean this shit
+impl From<(crate::blender::PackedCameraData, &CameraSnapshot)> for CameraSnapshot {
+    fn from(data: (crate::blender::PackedCameraData, &CameraSnapshot)) -> Self {
+        let (pcd, gc) = data;
+        let pos = glm::TVec3::<f32>::new(pcd.pos_x, pcd.pos_y, pcd.pos_z) + gc.pos;
+        let focus = pos - glm::TVec3::<f32>::new(pcd.angle_x, pcd.angle_y, pcd.angle_z);
+        
+        // TODO: Calculate this stuff as well.
+        let rot = glm::TVec3::<f32>::new(pcd.up_x, pcd.up_y, pcd.up_z);
+        let fov = gc.fov;
+
+        Self {
+            pos, focus, rot, fov
+        }
+    }
+}
+
 pub trait Interpolate {
     fn interpolate(&self, gc: &mut GameCamera, duration: Duration, loop_it: bool);
 }
