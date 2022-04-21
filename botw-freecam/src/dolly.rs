@@ -16,11 +16,11 @@ pub struct CameraSnapshot {
 impl From<(crate::blender::PackedCameraData, &CameraSnapshot)> for CameraSnapshot {
     fn from(data: (crate::blender::PackedCameraData, &CameraSnapshot)) -> Self {
         let (pcd, gc) = data;
-        let pos = glm::TVec3::<f32>::new(pcd.pos_x, pcd.pos_y, pcd.pos_z) + gc.pos;
-        let focus = pos - glm::TVec3::<f32>::new(pcd.angle_x, pcd.angle_y, pcd.angle_z);
+        let pos = glm::TVec3::<f32>::new(pcd.pos_x, pcd.pos_z, pcd.pos_y) + gc.pos;
+        let focus = pos - glm::TVec3::<f32>::new(pcd.angle_x, pcd.angle_z, pcd.angle_y);
         
         // TODO: Calculate this stuff as well.
-        let rot = glm::TVec3::<f32>::new(pcd.up_x, pcd.up_y, pcd.up_z);
+        let rot = glm::TVec3::<f32>::new(pcd.up_x, pcd.up_z, pcd.up_y);
         let fov = gc.fov;
 
         Self {
