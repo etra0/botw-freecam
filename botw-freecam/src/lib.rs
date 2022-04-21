@@ -25,6 +25,7 @@ use globals::*;
 use utils::{check_key_press, error_message, handle_keyboard, Input, Keys};
 
 use std::io::{self, Write};
+use std::mem::MaybeUninit;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 fn write_red(msg: &str) -> io::Result<()> {
@@ -210,6 +211,8 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
     cam.inject();
 
+    let mut game_camera_pointer = MaybeUninit::uninit();
+
     let xinput_func =
         |a: u32, b: &mut xinput::XINPUT_STATE| -> u32 { unsafe { xinput::XInputGetState(a, b) } };
 
@@ -251,7 +254,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
-            let gc = (g_camera_struct as *mut GameCamera).as_mut().ok_or("GameCamera was still null")?;
+            let gc = game_camera_pointer.write(&mut *(g_camera_struct as *mut GameCamera));
             if !active {
                 input.fov = gc.fov.into();
                 input.delta_rotation = 0.;

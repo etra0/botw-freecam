@@ -130,6 +130,8 @@ impl GameCamera {
         m_new.fixed_rows::<glm::U1>(1).transpose().xyz()
     }
 
+    // Just kept around for legacy purposes.
+    #[allow(dead_code)]
     pub fn clamp_distance(&mut self, point: &glm::Vec3) {
         let cp = glm::Vec3::from(self.pos);
         let cf = glm::Vec3::from(self.focus);
