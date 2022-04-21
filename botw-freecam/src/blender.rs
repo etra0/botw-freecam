@@ -30,19 +30,23 @@ pub struct BlenderReceiver {
 impl BlenderServer {
     pub fn new(sender: Sender<PackedCameraData>, should_run: Arc<AtomicBool>) -> Self {
         let socket = UdpSocket::bind("127.0.0.1:54321").unwrap();
+        socket.set_nonblocking(true).unwrap();
         Self { socket, sender, should_run }
     }
 
-    pub fn start_listening(&mut self) {
+    pub fn start_listening(&mut self) -> Result<(), flume::TrySendError<PackedCameraData>> {
         // TODO: Make the buffer smaller.
-        let mut buf = [0; 1024];
+        let mut buf = [0_u8; 128];
         self.should_run.store(true, Ordering::Relaxed);
 
         while self.should_run.load(Ordering::Relaxed) {
             match self.socket.recv(&mut buf) {
                 Ok(_) => {
                     let pcd = PackedCameraData::new(&buf);
-                    self.sender.try_send(pcd);
+                    match self.sender.try_send(pcd) {
+                        Ok(_) | Err(flume::TrySendError::Full(_)) => (),
+                        e => return e,
+                    }
                 },
                 Err(ref e) if e.kind() != std::io::ErrorKind::WouldBlock => {
                     log::error!("Something went wrong: {}", e);
@@ -50,6 +54,8 @@ impl BlenderServer {
                 _ => {},
             }
         }
+
+        Ok(())
     }
 }
 

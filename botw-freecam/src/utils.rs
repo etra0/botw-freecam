@@ -84,6 +84,7 @@ pub struct Input {
     pub dolly_increment: f32,
 
     pub unlock_character: bool,
+    pub use_blender: bool,
 }
 
 impl Input {

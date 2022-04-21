@@ -196,13 +196,13 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
     block_xinput(&proc_inf)?;
 
     // Blender Stuff ---
-    let (tx, rx) = flume::bounded::<blender::PackedCameraData>(60);
+    let (tx, rx) = flume::bounded::<blender::PackedCameraData>(24);
     let blender_receiver = blender::BlenderReceiver { receiver: rx, should_run: Arc::new(AtomicBool::new(false)) };
 
     let __should_run = blender_receiver.should_run.clone();
     let blender_sender_thread = std::thread::spawn(|| {
         let mut blender_server = blender::BlenderServer::new(tx, __should_run);
-        blender_server.start_listening();
+        blender_server.start_listening().unwrap();
     });
 
     // Blender Stuff --
@@ -340,13 +340,19 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            // if !input.unlock_character {
-            //     gc.consume_input(&input);
-            // };
+            if check_key_press(winuser::VK_F6) {
+                input.use_blender = !input.use_blender;
+                info!("Using blender input: {}", input.use_blender);
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+
+            if !input.unlock_character && !input.use_blender {
+                gc.consume_input(&input);
+            };
 
             match blender_receiver.receiver.try_recv() {
                 Ok(pcd) => {
-                    if starting_point.is_some() {
+                    if starting_point.is_some() && input.use_blender {
                         let current_point = starting_point.clone().unwrap();
                         let camera_snapshot = CameraSnapshot::from((pcd, &current_point));
                         camera_snapshot.set_inplace(gc);
