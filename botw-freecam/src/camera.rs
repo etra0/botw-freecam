@@ -55,7 +55,6 @@ impl From<FloatBE> for f32 {
     }
 }
 
-
 impl GameCamera {
     pub fn consume_input(&mut self, input: &Input) {
         let r_cam_x = f32::from(self.focus.0[0]) - f32::from(self.pos.0[0]);

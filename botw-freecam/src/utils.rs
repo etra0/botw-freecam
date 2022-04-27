@@ -1,7 +1,12 @@
 use crate::globals::*;
 use nalgebra_glm as glm;
-use std::ffi::CString;
-use winapi::um::{winuser, xinput};
+use windows_sys::Win32::UI::{
+    Input::{
+        KeyboardAndMouse::*,
+        XboxController::{XInputGetState, XINPUT_STATE},
+    },
+    WindowsAndMessaging::MessageBoxA,
+};
 
 const DEADZONE: i16 = 10000;
 const MINIMUM_ENGINE_SPEED: f32 = 1e-3;
@@ -46,8 +51,8 @@ pub enum Keys {
     A = 0x41, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
 }
 
-pub fn check_key_press(key: i32) -> bool {
-    (unsafe { winuser::GetAsyncKeyState(key) } as u32) & 0x8000 != 0
+pub fn check_key_press(key: u16) -> bool {
+    (unsafe { GetAsyncKeyState(key as _) } as u32) & 0x8000 != 0
 }
 
 pub fn calc_eucl_distance(a: &glm::Vec3, b: &glm::Vec3) -> f32 {
@@ -138,11 +143,11 @@ pub fn handle_keyboard(input: &mut Input) {
             };
 
             ([ $key_pos:expr, $key_neg:expr, $pos_do:expr, $neg_do:expr ]; $($tt:tt)*) => {
-                if (winuser::GetAsyncKeyState($key_pos as i32) as u32 & 0x8000) != 0 {
+                if (GetAsyncKeyState($key_pos as i32) as u32 & 0x8000) != 0 {
                     $pos_do;
                 }
 
-                if (winuser::GetAsyncKeyState($key_neg as i32) as u32 & 0x8000) != 0 {
+                if (GetAsyncKeyState($key_neg as i32) as u32 & 0x8000) != 0 {
                     $neg_do;
                 }
                 handle_state!($($tt)*);
@@ -154,7 +159,7 @@ pub fn handle_keyboard(input: &mut Input) {
     unsafe {
         handle_state! {
                 // Others
-                [winuser::VK_F2, winuser::VK_F3, input.change_active = true, input.change_active = false];
+                [VK_F2, VK_F3, input.change_active = true, input.change_active = false];
         }
     }
 
@@ -167,18 +172,18 @@ pub fn handle_keyboard(input: &mut Input) {
             // Position of the camer
             [Keys::W, Keys::S, input.delta_pos.1 = 0.02, input.delta_pos.1 = -0.02];
             [Keys::A, Keys::D, input.delta_pos.0 = 0.02, input.delta_pos.0 = -0.02];
-            [winuser::VK_UP, winuser::VK_DOWN, input.delta_focus.1 = -0.02, input.delta_focus.1 = 0.02];
-            [winuser::VK_LEFT, winuser::VK_RIGHT, input.delta_focus.0 = -0.02, input.delta_focus.0 = 0.02];
+            [VK_UP, VK_DOWN, input.delta_focus.1 = -0.02, input.delta_focus.1 = 0.02];
+            [VK_LEFT, VK_RIGHT, input.delta_focus.0 = -0.02, input.delta_focus.0 = 0.02];
 
             [Keys::Q, Keys::E, input.delta_altitude -= 0.02, input.delta_altitude += 0.02];
 
             // Rotation
-            [winuser::VK_NEXT, winuser::VK_PRIOR, input.delta_rotation += 0.02, input.delta_rotation -= 0.02];
+            [VK_NEXT, VK_PRIOR, input.delta_rotation += 0.02, input.delta_rotation -= 0.02];
 
             //  FoV
-            [winuser::VK_F5, winuser::VK_F6, input.fov -= 0.02, input.fov += 0.02];
+            [VK_F5, VK_F6, input.fov -= 0.02, input.fov += 0.02];
 
-            [winuser::VK_F3, winuser::VK_F4, input.speed_multiplier -= 0.01, input.speed_multiplier += 0.01];
+            [VK_F3, VK_F4, input.speed_multiplier -= 0.01, input.speed_multiplier += 0.01];
 
         }
     }
@@ -195,13 +200,13 @@ pub fn handle_keyboard(input: &mut Input) {
         input.dolly_increment = 0.01
     }
 
-    if check_key_press(winuser::VK_LSHIFT) {
+    if check_key_press(VK_LSHIFT) {
         input.delta_pos.0 *= 8.;
         input.delta_pos.1 *= 8.;
         input.delta_altitude *= 8.;
     }
 
-    if check_key_press(winuser::VK_TAB) {
+    if check_key_press(VK_TAB) {
         input.delta_pos.0 *= 0.2;
         input.delta_pos.1 *= 0.2;
         input.delta_altitude *= 0.2;
@@ -213,21 +218,16 @@ pub fn handle_keyboard(input: &mut Input) {
 }
 
 pub fn error_message(message: &str) {
-    let title = CString::new("Error while patching").unwrap();
-    let message = CString::new(message).unwrap();
+    let title = String::from("Error while patching\0");
+    let message = format!("{}\0", message);
 
     unsafe {
-        winapi::um::winuser::MessageBoxA(
-            std::ptr::null_mut(),
-            message.as_ptr(),
-            title.as_ptr(),
-            0x10,
-        );
+        MessageBoxA(0, message.as_ptr(), title.as_ptr(), 0x10);
     }
 }
 
-pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_STATE) -> u32) {
-    let mut xs: xinput::XINPUT_STATE = unsafe { std::mem::zeroed() };
+pub fn handle_controller(input: &mut Input, func: fn(u32, &mut XINPUT_STATE) -> u32) {
+    let mut xs: XINPUT_STATE = unsafe { std::mem::zeroed() };
     func(0, &mut xs);
 
     let gp = xs.Gamepad;
@@ -307,11 +307,11 @@ pub fn handle_controller(input: &mut Input, func: fn(u32, &mut xinput::XINPUT_ST
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn dummy_xinput(a: u32, b: &mut xinput::XINPUT_STATE) -> u32 {
+pub unsafe extern "system" fn dummy_xinput(a: u32, b: &mut XINPUT_STATE) -> u32 {
     if g_camera_active != 0 {
         *b = std::mem::zeroed();
         return 0;
     }
 
-    xinput::XInputGetState(a, b)
+    XInputGetState(a, b)
 }

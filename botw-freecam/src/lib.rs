@@ -3,13 +3,17 @@ use memory_rs::internal::{
     memory::resolve_module_path,
     process_info::ProcessInfo,
 };
-use std::ffi::CString;
-use winapi::um::consoleapi::AllocConsole;
-use winapi::um::libloaderapi::{FreeLibraryAndExitThread, GetModuleHandleA};
-use winapi::um::wincon::FreeConsole;
-use winapi::um::winuser;
-use winapi::um::xinput;
-use winapi::{shared::minwindef::LPVOID, um::libloaderapi::GetProcAddress};
+use std::ffi::{c_void, CString};
+use windows_sys::Win32::{
+    System::{
+        Console::{AllocConsole, FreeConsole},
+        LibraryLoader::{FreeLibraryAndExitThread, GetModuleHandleA, GetProcAddress},
+    },
+    UI::Input::{
+        KeyboardAndMouse::*,
+        XboxController::{XInputGetState, XINPUT_STATE},
+    },
+};
 
 use log::*;
 use simplelog::*;
@@ -35,7 +39,7 @@ fn write_red(msg: &str) -> io::Result<()> {
     stdout.reset()
 }
 
-unsafe extern "system" fn wrapper(lib: LPVOID) -> u32 {
+unsafe extern "system" fn wrapper(lib: *mut c_void) -> u32 {
     AllocConsole();
     {
         let mut path = resolve_module_path(lib).unwrap();
@@ -66,7 +70,6 @@ unsafe extern "system" fn wrapper(lib: LPVOID) -> u32 {
 
     FreeConsole();
     FreeLibraryAndExitThread(lib as _, 0);
-    0
 }
 
 #[derive(Debug)]
@@ -78,11 +81,11 @@ struct CameraOffsets {
 fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
     let function_name = CString::new("PPCRecompiler_getJumpTableBase").unwrap();
     let proc_handle = unsafe { GetModuleHandleA(std::ptr::null_mut()) };
-    let func = unsafe { GetProcAddress(proc_handle, function_name.as_ptr()) };
+    let func = unsafe {
+        GetProcAddress(proc_handle, function_name.as_ptr() as _)
+            .ok_or("Func return was empty".to_string())?
+    };
 
-    if (func as usize) == 0x0 {
-        return Err("Func returned was empty".into());
-    }
     let func: extern "C" fn() -> usize = unsafe { std::mem::transmute(func) };
 
     let addr = (func)();
@@ -139,22 +142,31 @@ fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
 fn block_xinput(proc_inf: &ProcessInfo) -> Result<Detour, Box<dyn std::error::Error>> {
     // Find input blocker for xinput only
 
-    let function_addr = proc_inf.region.scan_aob(&memory_rs::generate_aob_pattern![
-        0x48, 0x8B, 0x40, 0x28, 0x48, 0x8D, 0x55, 0xE7, 0x8B, 0x8F, 0x50, 0x01, 0x00, 0x00
-    ])?
-    .ok_or("XInput blocker couldn't be found")?;
+    let function_addr = proc_inf
+        .region
+        .scan_aob(&memory_rs::generate_aob_pattern![
+            0x48, 0x8B, 0x40, 0x28, 0x48, 0x8D, 0x55, 0xE7, 0x8B, 0x8F, 0x50, 0x01, 0x00, 0x00
+        ])?
+        .ok_or("XInput blocker couldn't be found")?;
 
     // HACK: read interceptor.asm
     let injection = unsafe {
-        Detour::new(function_addr, 14, &asm_override_xinput_call as *const _ as usize, Some(&mut g_xinput_override))
+        Detour::new(
+            function_addr,
+            14,
+            &asm_override_xinput_call as *const _ as usize,
+            Some(&mut g_xinput_override),
+        )
     };
 
-    println!("{:x?}", unsafe { &asm_override_xinput_call as *const _ as usize });
+    println!("{:x?}", unsafe {
+        &asm_override_xinput_call as *const _ as usize
+    });
 
     Ok(injection)
 }
 
-fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
+fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
     info!(
         "Breath of the Wild freecam by @etra0, v{}",
         utils::get_version()
@@ -201,11 +213,16 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         Box::new(Injection::new(camera_struct.camera + 0x174, vec![0x90; 10])),
         Box::new(Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10])),
         Box::new(Injection::new(camera_struct.camera + 0x22A, vec![0x90; 10])),
-
         // Rotation
         Box::new(Injection::new(camera_struct.rotation_vec1, vec![0x90; 7])),
-        Box::new(Injection::new(camera_struct.rotation_vec1 + 0x14, vec![0x90; 7])),
-        Box::new(Injection::new(camera_struct.rotation_vec1 + 0x28, vec![0x90; 7])),
+        Box::new(Injection::new(
+            camera_struct.rotation_vec1 + 0x14,
+            vec![0x90; 7],
+        )),
+        Box::new(Injection::new(
+            camera_struct.rotation_vec1 + 0x28,
+            vec![0x90; 7],
+        )),
         Box::new(block_xinput(&proc_inf)?),
     ];
 
@@ -213,15 +230,14 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut game_camera_pointer = MaybeUninit::uninit();
 
-    let xinput_func =
-        |a: u32, b: &mut xinput::XINPUT_STATE| -> u32 { unsafe { xinput::XInputGetState(a, b) } };
+    let xinput_func = |a: u32, b: &mut XINPUT_STATE| -> u32 { unsafe { XInputGetState(a, b) } };
 
     loop {
         utils::handle_controller(&mut input, xinput_func);
         handle_keyboard(&mut input);
         input.sanitize();
 
-        if input.deattach || check_key_press(winuser::VK_HOME) {
+        if input.deattach || check_key_press(VK_HOME) {
             info!("Exiting");
             break;
         }
@@ -273,20 +289,20 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            if check_key_press(winuser::VK_F9) {
+            if check_key_press(VK_F9) {
                 let cs = CameraSnapshot::new(gc);
                 info!("Point added to interpolation: {:?}", cs);
                 points.push(cs);
                 std::thread::sleep(std::time::Duration::from_millis(400));
             }
 
-            if check_key_press(winuser::VK_F11) {
+            if check_key_press(VK_F11) {
                 info!("Sequence cleaned!");
                 points.clear();
                 std::thread::sleep(std::time::Duration::from_millis(400));
             }
 
-            if check_key_press(winuser::VK_F10) & (points.len() > 1) {
+            if check_key_press(VK_F10) & (points.len() > 1) {
                 let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
                 points.interpolate(gc, dur, false);
                 std::thread::sleep(std::time::Duration::from_millis(500));
@@ -298,7 +314,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            if check_key_press(winuser::VK_F7) {
+            if check_key_press(VK_F7) {
                 input.unlock_character = !input.unlock_character;
                 if input.unlock_character {
                     nops.last_mut().unwrap().remove_injection();

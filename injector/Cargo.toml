@@ -1,6 +1,6 @@
 [package]
 name = "injector"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Sebastián Aedo <sebastian.aedo@sansano.usm.cl>"]
 edition = "2018"
 
@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 simple_injector = { git = "https://github.com/etra0/simple_injector" }
-memory-rs = { git = "https://github.com/etra0/memory-rs" }
+memory-rs = "0.2.5"

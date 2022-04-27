@@ -2,7 +2,7 @@ use crate::camera::*;
 use crate::utils::*;
 use nalgebra_glm as glm;
 use std::time::Duration;
-use winapi::um::winuser;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
 
 #[derive(Debug, Clone)]
 pub struct CameraSnapshot {
@@ -47,7 +47,6 @@ fn solve_eq(t: f32, p0: glm::Vec3, p1: glm::Vec3, p2: glm::Vec3, p3: glm::Vec3) 
 
     p0 * b0 + p1 * b1 + p2 * b2 + p3 * b3
 }
-
 
 /// We create our own sleep since we need a more precise way of sleeping the process. The way we'll
 /// do that is to sleep 1 ms always and then check if enough time has passed. It's like a
@@ -100,7 +99,7 @@ impl Interpolate for Vec<CameraSnapshot> {
         'outer: loop {
             let mut t = 0.;
             while t < 1. {
-                if check_key_press(winuser::VK_F8) {
+                if check_key_press(VK_F8 as _) {
                     break 'outer;
                 }
 
