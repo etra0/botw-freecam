@@ -1,4 +1,5 @@
-use std::{sync::{Arc, atomic::{AtomicBool, Ordering}}, convert::TryInto, net::UdpSocket};
+use std::{sync::{Arc, atomic::{AtomicBool, Ordering}}, convert::TryInto, net::TcpStream};
+use std::io::prelude::*;
 use flume::{Sender, Receiver};
 
 #[derive(Debug)]
@@ -17,7 +18,7 @@ pub struct PackedCameraData {
 }
 
 pub struct BlenderServer {
-    socket: UdpSocket,
+    socket: TcpStream,
     sender: Sender<PackedCameraData>,
     should_run: Arc<AtomicBool>,
 }
@@ -28,19 +29,19 @@ pub struct BlenderReceiver {
 }
 
 impl BlenderServer {
-    pub fn new(sender: Sender<PackedCameraData>, should_run: Arc<AtomicBool>) -> Self {
-        let socket = UdpSocket::bind("127.0.0.1:54321").unwrap();
+    pub fn new(sender: Sender<PackedCameraData>, should_run: Arc<AtomicBool>) -> std::io::Result<Self>  {
+        let socket = TcpStream::connect("127.0.0.1:12345")?;
         socket.set_nonblocking(true).unwrap();
-        Self { socket, sender, should_run }
+        Ok(Self { socket, sender, should_run })
     }
 
     pub fn start_listening(&mut self) -> Result<(), flume::TrySendError<PackedCameraData>> {
-        // TODO: Make the buffer smaller.
         let mut buf = [0_u8; 128];
         self.should_run.store(true, Ordering::Relaxed);
 
+        // TODO: Figure out a way of doing this cleaner?
         while self.should_run.load(Ordering::Relaxed) {
-            match self.socket.recv(&mut buf) {
+            match self.socket.read(&mut buf) {
                 Ok(_) => {
                     let pcd = PackedCameraData::new(&buf);
                     match self.sender.try_send(pcd) {
@@ -50,6 +51,7 @@ impl BlenderServer {
                 },
                 Err(ref e) if e.kind() != std::io::ErrorKind::WouldBlock => {
                     log::error!("Something went wrong: {}", e);
+                    break;
                 },
                 _ => {},
             }

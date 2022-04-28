@@ -15,6 +15,7 @@ use windows_sys::Win32::{
     },
 };
 use std::{ffi::CString, sync::{Arc, atomic::{AtomicBool, Ordering}}};
+use std::io::prelude::*;
 
 use log::*;
 use simplelog::*;
@@ -201,8 +202,22 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
 
     let __should_run = blender_receiver.should_run.clone();
     let blender_sender_thread = std::thread::spawn(|| {
-        let mut blender_server = blender::BlenderServer::new(tx, __should_run);
-        blender_server.start_listening().unwrap();
+        let mut blender_server = match blender::BlenderServer::new(tx, __should_run) {
+            Ok(bs) => bs,
+            Err(e) => {
+                warn!("blender thread error: {}", e);
+                return;
+            }
+        };
+
+
+        match blender_server.start_listening() {
+            Err(e) => {
+                warn!("blender thread error: {}", e);
+                return;
+            }
+            _ => (),
+        }
     });
 
     // Blender Stuff --
@@ -340,7 +355,7 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            if check_key_press(winuser::VK_F6) {
+            if check_key_press(VK_F6) {
                 input.use_blender = !input.use_blender;
                 info!("Using blender input: {}", input.use_blender);
                 std::thread::sleep(std::time::Duration::from_millis(500));
