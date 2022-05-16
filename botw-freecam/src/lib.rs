@@ -3,7 +3,7 @@ use memory_rs::internal::{
     memory::resolve_module_path,
     process_info::ProcessInfo,
 };
-use std::ffi::{c_void, CString};
+use std::ffi::c_void;
 use windows_sys::Win32::{
     System::{
         Console::{AllocConsole, FreeConsole},
@@ -79,7 +79,7 @@ struct CameraOffsets {
 }
 
 fn get_camera_function() -> Result<CameraOffsets, Box<dyn std::error::Error>> {
-    let function_name = CString::new("PPCRecompiler_getJumpTableBase").unwrap();
+    let function_name = String::from("PPCRecompiler_getJumpTableBase\0");
     let proc_handle = unsafe { GetModuleHandleA(std::ptr::null_mut()) };
     let func = unsafe {
         GetProcAddress(proc_handle, function_name.as_ptr() as _)
