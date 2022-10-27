@@ -17,7 +17,8 @@ fn main() {
     path.pop();
     let path_string = path.to_string_lossy();
 
-    let dll_path = format!("{}/botw_freecam.dll", path_string).to_string();
+    let dll_path = format!("{}\\botw_freecam.dll", path_string).to_string();
+    println!("DLL PATH: {}", dll_path);
 
     inject_dll(&p, &dll_path);
 }

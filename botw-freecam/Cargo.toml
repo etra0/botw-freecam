@@ -2,7 +2,7 @@
 authors = ["Sebastián Aedo <sebastian.aedo29@gmail.com>"]
 edition = "2018"
 name = "botw-freecam"
-version = "0.2.6"
+version = "0.2.7"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

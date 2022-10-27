@@ -9,10 +9,10 @@ use windows_sys::Win32::{
         Console::{AllocConsole, FreeConsole},
         LibraryLoader::{FreeLibraryAndExitThread, GetModuleHandleA, GetProcAddress},
     },
-    UI::Input::{
+    UI::{Input::{
         KeyboardAndMouse::*,
         XboxController::{XInputGetState, XINPUT_STATE},
-    },
+    }, WindowsAndMessaging::MessageBoxA},
 };
 
 use log::*;
@@ -179,6 +179,7 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = Input::new();
 
     let mut active = false;
+    let mut control_override = false;
 
     let mut points: Vec<CameraSnapshot> = vec![];
 
@@ -189,8 +190,6 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
     info!("{:x?}", camera_struct);
     let camera_pointer = camera_struct.camera;
     info!("Camera function camera_pointer: {:x}", camera_pointer);
-
-    block_xinput(&proc_inf)?;
 
     let mut cam = unsafe {
         Detour::new(
@@ -223,8 +222,20 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
             camera_struct.rotation_vec1 + 0x28,
             vec![0x90; 7],
         )),
-        Box::new(block_xinput(&proc_inf)?),
     ];
+
+    if let Ok(injection) = block_xinput(&proc_inf) {
+        control_override = true;
+        nops.push(Box::new(injection));
+    } else {
+
+        let title = "Error while patching\0";
+        let msg = "XInput blocker couldn't be found (this could means you're using a maybe unsupported Cemu version). This means your controller won't be usable as input.\
+                   Check the repository to see current Cemu supported version.\0";
+        unsafe {
+            MessageBoxA(0, msg.as_ptr(), title.as_ptr(), 0x30);
+        }
+    }
 
     cam.inject();
 
@@ -233,7 +244,9 @@ fn patch(_lib: *mut c_void) -> Result<(), Box<dyn std::error::Error>> {
     let xinput_func = |a: u32, b: &mut XINPUT_STATE| -> u32 { unsafe { XInputGetState(a, b) } };
 
     loop {
-        utils::handle_controller(&mut input, xinput_func);
+        if control_override {
+            utils::handle_controller(&mut input, xinput_func);
+        }
         handle_keyboard(&mut input);
         input.sanitize();
 
