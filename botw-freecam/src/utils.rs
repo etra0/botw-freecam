@@ -46,7 +46,7 @@ pub enum Keys {
     A = 0x41, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
 }
 
-pub fn check_key_press(key: i32) -> bool {
+pub unsafe fn check_key_press(key: i32) -> bool {
     (unsafe { winuser::GetAsyncKeyState(key) } as u32) & 0x8000 != 0
 }
 
@@ -183,11 +183,11 @@ pub fn handle_keyboard(input: &mut Input) {
         }
     }
 
-    if check_key_press(Keys::P as _) {
+    if unsafe { check_key_press(Keys::P as _) }{
         input.dolly_duration += input.dolly_increment;
         input.dolly_increment *= 1.01;
         println!("Duration: {}", input.dolly_duration);
-    } else if check_key_press(Keys::O as _) {
+    } else if unsafe { check_key_press(Keys::O as _) }{
         input.dolly_duration -= input.dolly_increment;
         input.dolly_increment *= 1.01;
         println!("Duration: {}", input.dolly_duration);
@@ -195,13 +195,13 @@ pub fn handle_keyboard(input: &mut Input) {
         input.dolly_increment = 0.01
     }
 
-    if check_key_press(winuser::VK_LSHIFT) {
+    if unsafe { check_key_press(winuser::VK_LSHIFT) }{
         input.delta_pos.0 *= 8.;
         input.delta_pos.1 *= 8.;
         input.delta_altitude *= 8.;
     }
 
-    if check_key_press(winuser::VK_TAB) {
+    if unsafe { check_key_press(winuser::VK_TAB) }{
         input.delta_pos.0 *= 0.2;
         input.delta_pos.1 *= 0.2;
         input.delta_altitude *= 0.2;

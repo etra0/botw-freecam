@@ -100,7 +100,7 @@ impl Interpolate for Vec<CameraSnapshot> {
         'outer: loop {
             let mut t = 0.;
             while t < 1. {
-                if check_key_press(winuser::VK_F8) {
+                if unsafe { check_key_press(winuser::VK_F8) } {
                     break 'outer;
                 }
 

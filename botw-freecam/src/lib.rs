@@ -218,7 +218,7 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
         handle_keyboard(&mut input);
         input.sanitize();
 
-        if input.deattach || check_key_press(winuser::VK_HOME) {
+        if input.deattach || unsafe { check_key_press(winuser::VK_HOME) } {
             info!("Exiting");
             break;
         }
@@ -270,32 +270,32 @@ fn patch(_lib: LPVOID) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            if check_key_press(winuser::VK_F9) {
+            if unsafe { check_key_press(winuser::VK_F9) } {
                 let cs = CameraSnapshot::new(gc);
                 info!("Point added to interpolation: {:?}", cs);
                 points.push(cs);
                 std::thread::sleep(std::time::Duration::from_millis(400));
             }
 
-            if check_key_press(winuser::VK_F11) {
+            if unsafe { check_key_press(winuser::VK_F11) }{
                 info!("Sequence cleaned!");
                 points.clear();
                 std::thread::sleep(std::time::Duration::from_millis(400));
             }
 
-            if check_key_press(winuser::VK_F10) & (points.len() > 1) {
+            if unsafe { check_key_press(winuser::VK_F10)} & (points.len() > 1) {
                 let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
                 points.interpolate(gc, dur, false);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            if check_key_press(Keys::L as _) & (points.len() > 1) {
+            if unsafe { check_key_press(Keys::L as _)} & (points.len() > 1) {
                 let dur = std::time::Duration::from_secs_f32(input.dolly_duration);
                 points.interpolate(gc, dur, true);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
 
-            if check_key_press(winuser::VK_F7) {
+            if unsafe { check_key_press(winuser::VK_F7) }{
                 input.unlock_character = !input.unlock_character;
                 if input.unlock_character {
                     nops.last_mut().unwrap().remove_injection();
