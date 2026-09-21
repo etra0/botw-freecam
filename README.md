@@ -1,3 +1,5 @@
+## This project is no longer maintained, last working version was tested with Cemu 1.26.2.
+
 # Breath of the Wild Freecam
 ![Rust](https://github.com/etra0/botw-freecam/workflows/Rust/badge.svg)
 
